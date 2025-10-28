@@ -19,6 +19,7 @@ type Machine struct {
 	statusMu   sync.RWMutex
 	current    StateID
 	activePath []StateID
+	visited    map[StateID]bool
 	started    bool
 
 	subsMu      sync.RWMutex
@@ -58,6 +59,7 @@ func (m *Machine) Start() error {
 	}
 	m.current = cur
 	m.activePath = path
+	m.visited = make(map[StateID]bool, len(path))
 	// recreate channels to support restart; clear any stale events
 	buf := cap(m.events)
 	if buf <= 0 {
@@ -73,6 +75,7 @@ func (m *Machine) Start() error {
 				return err
 			}
 		}
+		m.visited[sid] = true
 	}
 	m.wg.Add(1)
 	go m.loop()
@@ -114,6 +117,25 @@ func (m *Machine) CurrentPath() []StateID {
 	cp := make([]StateID, len(m.activePath))
 	copy(cp, m.activePath)
 	return cp
+}
+
+// IsActive reports whether the given state is on the current active path (from root to leaf).
+func (m *Machine) IsActive(s StateID) bool {
+	m.statusMu.RLock()
+	defer m.statusMu.RUnlock()
+	for _, id := range m.activePath {
+		if id == s {
+			return true
+		}
+	}
+	return false
+}
+
+// HasVisited reports whether the machine has ever activated the given state since Start.
+func (m *Machine) HasVisited(s StateID) bool {
+	m.statusMu.RLock()
+	defer m.statusMu.RUnlock()
+	return m.visited[s]
 }
 
 func (m *Machine) Subscribe(s Subscriber) {
@@ -282,6 +304,9 @@ func (m *Machine) handleEvent(e Event) error {
 	leaf := entrySeq[len(entrySeq)-1]
 	m.current = leaf
 	m.activePath = m.pathTo(leaf)
+	for _, sid := range entrySeq {
+		m.visited[sid] = true
+	}
 	m.statusMu.Unlock()
 
 	m.notify(from, m.current, e, nil)

@@ -98,6 +98,36 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 	}
 }
 
+func TestMachine_IsActive(t *testing.T) {
+	def, err := NewDef("visit").
+		State("A").State("B").
+		Initial("A").
+		On("go", WithFrom("A"), WithTo("B")).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine(def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	if !m.IsActive("A") {
+		t.Fatalf("A should be active after start")
+	}
+	if m.IsActive("B") {
+		t.Fatalf("B should not be active yet")
+	}
+	if err := m.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	if !m.IsActive("B") {
+		t.Fatalf("B should be active after transition")
+	}
+}
+
 type errSub struct {
 	lastErr error
 }
