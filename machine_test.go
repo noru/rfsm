@@ -68,11 +68,11 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 	def, err := NewDef("sync").
 		State("A").State("B").
 		Initial("A").
-		On("go").From("A").To("B").Action(func(e Event, ctx any) error {
-		time.Sleep(40 * time.Millisecond)
-		atomic.StoreInt64(&stamp, time.Now().UnixNano())
-		return nil
-	}).Done().
+		On("go", WithFrom("A"), WithTo("B"), WithAction(func(e Event, ctx any) error {
+			time.Sleep(40 * time.Millisecond)
+			atomic.StoreInt64(&stamp, time.Now().UnixNano())
+			return nil
+		})).
 		Build()
 	if err != nil {
 		t.Fatal(err)

@@ -5,20 +5,14 @@ import "fmt"
 // Builder interfaces
 type DefinitionBuilder interface {
 	State(id StateID, opts ...StateOption) DefinitionBuilder
-	On(event string) TransitionBuilder
+	On(event string, opts ...TransitionOption) DefinitionBuilder
 	Initial(id StateID) DefinitionBuilder
+	InitialChild(parent StateID, child StateID) DefinitionBuilder
 	Build() (*Definition, error)
 }
 
 type StateOption func(*StateDef)
-
-type TransitionBuilder interface {
-	From(id StateID) TransitionBuilder
-	To(id StateID) TransitionBuilder
-	Guard(fn GuardFunc) TransitionBuilder
-	Action(fn ActionFunc) TransitionBuilder
-	Done() DefinitionBuilder
-}
+type TransitionOption func(*TransitionDef)
 
 // Internal implementation
 type builder struct {
@@ -26,9 +20,6 @@ type builder struct {
 	states      map[StateID]StateDef
 	transitions []TransitionDef
 	initial     *StateID
-
-	// Temporary transition being built
-	cur TransitionDef
 }
 
 func NewDef(name string) DefinitionBuilder {
@@ -39,51 +30,106 @@ func NewDef(name string) DefinitionBuilder {
 	}
 }
 
-func WithEntry(h HookFunc) StateOption { return func(s *StateDef) { s.OnEntry = h } }
-func WithExit(h HookFunc) StateOption  { return func(s *StateDef) { s.OnExit = h } }
+func WithEntry(h HookFunc) StateOption        { return func(s *StateDef) { s.OnEntry = h } }
+func WithExit(h HookFunc) StateOption         { return func(s *StateDef) { s.OnExit = h } }
+func WithDescription(desc string) StateOption { return func(s *StateDef) { s.Description = desc } }
+func WithSubDef(sub *Definition) StateOption  { return func(s *StateDef) { s.SubDef = sub } }
+
+// Transition options (With* for naming consistency)
+func WithFrom(id StateID) TransitionOption      { return func(t *TransitionDef) { t.From = id } }
+func WithTo(id StateID) TransitionOption        { return func(t *TransitionDef) { t.To = id } }
+func WithGuard(fn GuardFunc) TransitionOption   { return func(t *TransitionDef) { t.Guard = fn } }
+func WithAction(fn ActionFunc) TransitionOption { return func(t *TransitionDef) { t.Action = fn } }
 
 func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 	def := StateDef{ID: id}
 	for _, opt := range opts {
 		opt(&def)
 	}
+	// If SubDef is provided, merge sub-definition into composite state
+	if def.SubDef != nil {
+		sub := def.SubDef
+		var children []StateID
+		// merge states
+		for sid, s := range sub.States {
+			if _, ok := b.states[sid]; ok {
+				panic(fmt.Sprintf("duplicate state id %q when merging sub definition into %q", sid, id))
+			}
+			if s.Parent == "" {
+				s.Parent = id
+				children = append(children, sid)
+			}
+			b.states[sid] = s
+		}
+		def.Children = append(def.Children, children...)
+		if def.InitialChild == "" {
+			def.InitialChild = sub.Initial
+		}
+		// merge transitions
+		b.transitions = append(b.transitions, sub.Transitions...)
+		// clear build-time field
+		def.SubDef = nil
+	}
 	b.states[id] = def
 	return b
 }
 
-func (b *builder) On(event string) TransitionBuilder {
-	b.cur = TransitionDef{Event: event}
+// CompositeDef merges a sub-definition as the children of composite state id.
+// - All states from sub are imported; top-level (Parent=="") ones become children of id.
+// - InitialChild of id is set to sub.Initial.
+// - Transitions from sub are merged.
+// - Duplicate state IDs across parent and sub are rejected.
+func (b *builder) CompositeDef(id StateID, sub *Definition, opts ...StateOption) DefinitionBuilder {
+	// prepare composite state
+	comp := b.states[id]
+	comp.ID = id
+	// collect children: sub states with empty Parent
+	var children []StateID
+	// merge states
+	for sid, s := range sub.States {
+		if _, ok := b.states[sid]; ok {
+			panic(fmt.Sprintf("duplicate state id %q when merging sub definition into %q", sid, id))
+		}
+		// rebase parent: if empty, set to id
+		if s.Parent == "" {
+			s.Parent = id
+			children = append(children, sid)
+		}
+		b.states[sid] = s
+	}
+	comp.Children = append(comp.Children, children...)
+	if comp.InitialChild == "" {
+		comp.InitialChild = sub.Initial
+	}
+	for _, opt := range opts {
+		opt(&comp)
+	}
+	b.states[id] = comp
+	// merge transitions
+	b.transitions = append(b.transitions, sub.Transitions...)
 	return b
 }
 
-func (b *builder) From(id StateID) TransitionBuilder {
-	b.cur.From = id
+func (b *builder) On(event string, opts ...TransitionOption) DefinitionBuilder {
+	t := TransitionDef{Event: event}
+	for _, opt := range opts {
+		opt(&t)
+	}
+	b.transitions = append(b.transitions, t)
 	return b
 }
 
-func (b *builder) To(id StateID) TransitionBuilder {
-	b.cur.To = id
-	return b
-}
-
-func (b *builder) Guard(fn GuardFunc) TransitionBuilder {
-	b.cur.Guard = fn
-	return b
-}
-
-func (b *builder) Action(fn ActionFunc) TransitionBuilder {
-	b.cur.Action = fn
-	return b
-}
-
-func (b *builder) Done() DefinitionBuilder {
-	b.transitions = append(b.transitions, b.cur)
-	b.cur = TransitionDef{}
-	return b
-}
+// removed chained TransitionBuilder in favor of option-style On
 
 func (b *builder) Initial(id StateID) DefinitionBuilder {
 	b.initial = &id
+	return b
+}
+
+func (b *builder) InitialChild(parent StateID, child StateID) DefinitionBuilder {
+	st := b.states[parent]
+	st.InitialChild = child
+	b.states[parent] = st
 	return b
 }
 
@@ -105,6 +151,41 @@ func (b *builder) Build() (*Definition, error) {
 		}
 		if t.Event == "" {
 			return nil, fmt.Errorf("transition event is empty")
+		}
+	}
+	// Validate: hierarchy
+	for id, st := range b.states {
+		if len(st.Children) > 0 {
+			// initial child must be one of children
+			if st.InitialChild == "" {
+				return nil, fmt.Errorf("composite state %q requires InitialChild", id)
+			}
+			okChild := false
+			for _, c := range st.Children {
+				if c == st.InitialChild {
+					okChild = true
+					break
+				}
+			}
+			if !okChild {
+				return nil, fmt.Errorf("InitialChild %q not in children of %q", st.InitialChild, id)
+			}
+			// children must exist and parent must be set to this id
+			for _, c := range st.Children {
+				cst, ok := b.states[c]
+				if !ok {
+					return nil, fmt.Errorf("child state %q of %q not defined", c, id)
+				}
+				if cst.Parent != id {
+					return nil, fmt.Errorf("child %q of %q has wrong parent %q", c, id, cst.Parent)
+				}
+			}
+		}
+		// parent exists if set
+		if st.Parent != "" {
+			if _, ok := b.states[st.Parent]; !ok {
+				return nil, fmt.Errorf("state %q references missing parent %q", id, st.Parent)
+			}
 		}
 	}
 	d := &Definition{

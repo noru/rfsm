@@ -22,6 +22,12 @@ type StateDef struct {
 	Description string
 	OnEntry     HookFunc
 	OnExit      HookFunc
+	// Hierarchy
+	Parent       StateID   // empty means no parent (top-level)
+	Children     []StateID // non-empty => composite state
+	InitialChild StateID   // valid only if Children non-empty
+	// Build-time: optional sub-definition to merge into this composite state
+	SubDef *Definition
 }
 
 // Transition definition (immutable)

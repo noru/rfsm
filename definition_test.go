@@ -12,8 +12,8 @@ func TestBasicTransition(t *testing.T) {
 		State("Locked").
 		State("Unlocked").
 		Initial("Locked").
-		On("coin").From("Locked").To("Unlocked").Done().
-		On("push").From("Unlocked").To("Locked").Done().
+		On("coin", WithFrom("Locked"), WithTo("Unlocked")).
+		On("push", WithFrom("Unlocked"), WithTo("Locked")).
 		Build()
 	if err != nil {
 		t.Fatalf("build err: %v", err)
@@ -49,7 +49,7 @@ func TestGuardAndNoTransition(t *testing.T) {
 	def, err := NewDef("g").
 		State("A").State("B").
 		Initial("A").
-		On("go").From("A").To("B").Guard(func(e Event, ctx any) bool { return allow }).Done().
+		On("go", WithFrom("A"), WithTo("B"), WithGuard(func(e Event, ctx any) bool { return allow })).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -82,12 +82,12 @@ func TestActionRollback(t *testing.T) {
 		State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil })).
 		State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil })).
 		Initial("A").
-		On("go").From("A").To("B").Action(func(e Event, ctx any) error {
-		if fail {
-			return errors.New("boom")
-		}
-		return nil
-	}).Done().
+		On("go", WithFrom("A"), WithTo("B"), WithAction(func(e Event, ctx any) error {
+			if fail {
+				return errors.New("boom")
+			}
+			return nil
+		})).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -97,12 +97,12 @@ func TestActionRollback(t *testing.T) {
 	_ = m.Start()
 	defer m.Stop()
 
-	// 初始进入 A 一次
+	// Initial entry into A once
 	if entryA != 1 {
 		t.Fatalf("entryA want 1 got %d", entryA)
 	}
 
-	// 失败触发：应回滚，仍在 A，且 entryA 再次被调用以恢复
+	// Failure: should rollback, stay in A, and A's entry called again
 	if err := m.Dispatch(Event{Name: "go"}); !errors.Is(err, ErrActionFailed) {
 		t.Fatalf("expect ErrActionFailed, got %v", err)
 	}
@@ -119,7 +119,7 @@ func TestActionRollback(t *testing.T) {
 		t.Fatalf("entryB want 0 got %d", entryB)
 	}
 
-	// 成功后进入 B
+	// Success: enter B
 	fail = false
 	if err := m.Dispatch(Event{Name: "go"}); err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestAsyncAndSubscriber(t *testing.T) {
 	def, err := NewDef("t").
 		State("A").State("B").
 		Initial("A").
-		On("go").From("A").To("B").Done().
+		On("go", WithFrom("A"), WithTo("B")).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestAsyncAndSubscriber(t *testing.T) {
 	if err := m.DispatchAsync(Event{Name: "go"}); err != nil {
 		t.Fatal(err)
 	}
-	// 等待异步处理
+	// Wait for async processing
 	time.Sleep(50 * time.Millisecond)
 	if got := m.Current(); got != "B" {
 		t.Fatalf("want B got %v", got)
