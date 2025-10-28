@@ -45,6 +45,8 @@ type Definition struct {
 	States      map[StateID]StateDef
 	Transitions []TransitionDef
 	Initial     StateID
+	// cached topology (computed on demand)
+	topology *GraphTopology
 }
 
 // Runtime errors

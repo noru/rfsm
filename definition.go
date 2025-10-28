@@ -196,3 +196,23 @@ func (b *builder) Build() (*Definition, error) {
 	}
 	return d, nil
 }
+
+// IsBefore reports whether a appears before b in the definition's topological order.
+// Returns false with error if a cycle exists or states are missing.
+func (d *Definition) IsBefore(a, b StateID) (bool, error) {
+	topo, err := d.ensureTopology()
+	if err != nil {
+		return false, err
+	}
+	return topo.IsBefore(a, b), nil
+}
+
+// IsAfter reports whether a appears after b in the definition's topological order.
+// Returns false with error if a cycle exists or states are missing.
+func (d *Definition) IsAfter(a, b StateID) (bool, error) {
+	topo, err := d.ensureTopology()
+	if err != nil {
+		return false, err
+	}
+	return topo.IsAfter(a, b), nil
+}
