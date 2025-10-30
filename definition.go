@@ -74,42 +74,6 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 	return b
 }
 
-// CompositeDef merges a sub-definition as the children of composite state id.
-// - All states from sub are imported; top-level (Parent=="") ones become children of id.
-// - InitialChild of id is set to sub.Initial.
-// - Transitions from sub are merged.
-// - Duplicate state IDs across parent and sub are rejected.
-func (b *builder) CompositeDef(id StateID, sub *Definition, opts ...StateOption) DefinitionBuilder {
-	// prepare composite state
-	comp := b.states[id]
-	comp.ID = id
-	// collect children: sub states with empty Parent
-	var children []StateID
-	// merge states
-	for sid, s := range sub.States {
-		if _, ok := b.states[sid]; ok {
-			panic(fmt.Sprintf("duplicate state id %q when merging sub definition into %q", sid, id))
-		}
-		// rebase parent: if empty, set to id
-		if s.Parent == "" {
-			s.Parent = id
-			children = append(children, sid)
-		}
-		b.states[sid] = s
-	}
-	comp.Children = append(comp.Children, children...)
-	if comp.InitialChild == "" {
-		comp.InitialChild = sub.Initial
-	}
-	for _, opt := range opts {
-		opt(&comp)
-	}
-	b.states[id] = comp
-	// merge transitions
-	b.transitions = append(b.transitions, sub.Transitions...)
-	return b
-}
-
 func (b *builder) On(event string, opts ...TransitionOption) DefinitionBuilder {
 	t := TransitionDef{Event: event}
 	for _, opt := range opts {
