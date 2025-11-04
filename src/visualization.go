@@ -97,15 +97,9 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 		buf.WriteString(string(t.To))
 		// label
 		var needLabel bool
-		if t.Event != "" {
-			needLabel = true
-		}
-		if opts.ShowGuards && t.Guard != nil {
-			needLabel = true
-		}
-		if opts.ShowActions && t.Action != nil {
-			needLabel = true
-		}
+		if t.Event != "" { needLabel = true }
+		if opts.ShowGuards && t.Guard != nil { needLabel = true }
+		if opts.ShowActions && t.Action != nil { needLabel = true }
 		if needLabel {
 			buf.WriteString(" : ")
 			first := true
@@ -114,16 +108,12 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 				first = false
 			}
 			if opts.ShowGuards && t.Guard != nil {
-				if !first {
-					buf.WriteString(" ")
-				}
+				if !first { buf.WriteString(" ") }
 				buf.WriteString("[guard]")
 				first = false
 			}
 			if opts.ShowActions && t.Action != nil {
-				if !first {
-					buf.WriteString(" ")
-				}
+				if !first { buf.WriteString(" ") }
 				buf.WriteString("/ action")
 			}
 		}
@@ -226,15 +216,9 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 		buf.WriteString("\"")
 		// label
 		var need bool
-		if t.Event != "" {
-			need = true
-		}
-		if opts.ShowGuards && t.Guard != nil {
-			need = true
-		}
-		if opts.ShowActions && t.Action != nil {
-			need = true
-		}
+		if t.Event != "" { need = true }
+		if opts.ShowGuards && t.Guard != nil { need = true }
+		if opts.ShowActions && t.Action != nil { need = true }
 		if need {
 			buf.WriteString(" [label=\"")
 			first := true
@@ -243,16 +227,12 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 				first = false
 			}
 			if opts.ShowGuards && t.Guard != nil {
-				if !first {
-					buf.WriteString(" ")
-				}
+				if !first { buf.WriteString(" ") }
 				buf.WriteString("[guard]")
 				first = false
 			}
 			if opts.ShowActions && t.Action != nil {
-				if !first {
-					buf.WriteString(" ")
-				}
+				if !first { buf.WriteString(" ") }
 				buf.WriteString("/ action")
 			}
 			buf.WriteString("\"]")
@@ -263,3 +243,5 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	buf.WriteString("}\n")
 	return buf.String()
 }
+
+

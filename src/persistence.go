@@ -94,3 +94,5 @@ func (m *Machine) RestoreSnapshotJSON(data []byte, buf int) error {
 	}
 	return m.RestoreSnapshot(&snap, buf)
 }
+
+

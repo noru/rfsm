@@ -156,3 +156,5 @@ func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 		t.Fatalf("subscriber did not receive ErrNoTransition, got %v", sub.lastErr)
 	}
 }
+
+

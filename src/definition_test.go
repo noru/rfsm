@@ -170,3 +170,5 @@ func TestAsyncAndSubscriber(t *testing.T) {
 		t.Fatalf("want subscriber called")
 	}
 }
+
+
