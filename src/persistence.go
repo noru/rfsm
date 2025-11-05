@@ -7,9 +7,10 @@ import (
 
 // Snapshot captures the minimal runtime needed to resume a machine
 type Snapshot struct {
-	Current    StateID   `json:"current"`
-	ActivePath []StateID `json:"active_path"`
-	Visited    []StateID `json:"visited,omitempty"`
+	Current     StateID         `json:"current"`
+	ActivePath  []StateID       `json:"active_path"`
+	Visited     []StateID       `json:"visited,omitempty"`
+	ContextJSON json.RawMessage `json:"context,omitempty"`
 }
 
 // Snapshot returns an in-memory snapshot of the current machine runtime state.
@@ -22,10 +23,20 @@ func (m *Machine[C]) Snapshot() *Snapshot {
 	}
 	cp := make([]StateID, len(m.activePath))
 	copy(cp, m.activePath)
+
+	var ctxJSON json.RawMessage
+	ctxAny := any(m.ctx)
+	if ctxAny != nil {
+		if data, err := json.Marshal(m.ctx); err == nil {
+			ctxJSON = data
+		}
+	}
+
 	return &Snapshot{
-		Current:    m.current,
-		ActivePath: cp,
-		Visited:    visited,
+		Current:     m.current,
+		ActivePath:  cp,
+		Visited:     visited,
+		ContextJSON: ctxJSON,
 	}
 }
 
@@ -38,6 +49,7 @@ func (m *Machine[C]) SnapshotJSON() ([]byte, error) {
 // RestoreSnapshot restores machine runtime from snapshot and starts the event loop.
 // It does not call entry/exit hooks during restoration.
 // buf controls the capacity of the internal events queue; if <=0, defaults to 64.
+// If the snapshot contains context data, it will be restored into the machine's context.
 func (m *Machine[C]) RestoreSnapshot(snap *Snapshot, buf int) error {
 	if snap == nil {
 		return fmt.Errorf("nil snapshot")
@@ -59,6 +71,13 @@ func (m *Machine[C]) RestoreSnapshot(snap *Snapshot, buf int) error {
 	for i := range expected {
 		if expected[i] != snap.ActivePath[i] {
 			return fmt.Errorf("active_path does not match hierarchy")
+		}
+	}
+
+	// Restore context if present
+	if len(snap.ContextJSON) > 0 {
+		if err := json.Unmarshal(snap.ContextJSON, &m.ctx); err != nil {
+			return fmt.Errorf("failed to restore context: %w", err)
 		}
 	}
 

@@ -1,6 +1,7 @@
 package rfsm
 
 import (
+	"encoding/json"
 	"sync/atomic"
 	"testing"
 )
@@ -56,5 +57,68 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 	// visited should contain A and B
 	if !m2.HasVisited("A") || !m2.HasVisited("B") {
 		t.Fatalf("visited should include A and B")
+	}
+}
+
+func TestPersistence_ContextSerialization(t *testing.T) {
+	type testContext struct {
+		Counter int    `json:"counter"`
+		Message string `json:"message"`
+	}
+
+	def, err := NewDef("ctx_test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create machine with context
+	ctx1 := &testContext{
+		Counter: 42,
+		Message: "test",
+	}
+	m1 := NewMachine[*testContext](def, ctx1, 4)
+	if err := m1.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m1.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Take snapshot
+	snapData, err := m1.SnapshotJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify snapshot contains context
+	var snap Snapshot
+	if err := json.Unmarshal(snapData, &snap); err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.ContextJSON) == 0 {
+		t.Fatal("snapshot should contain context")
+	}
+
+	// Restore into new machine
+	ctx2 := &testContext{}
+	m2 := NewMachine[*testContext](def, ctx2, 4)
+	if err := m2.RestoreSnapshotJSON(snapData, 4); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify context was restored
+	if ctx2.Counter != 42 {
+		t.Fatalf("context counter want 42 got %d", ctx2.Counter)
+	}
+	if ctx2.Message != "test" {
+		t.Fatalf("context message want 'test' got %q", ctx2.Message)
+	}
+	if m2.Current() != "B" {
+		t.Fatalf("current want B got %v", m2.Current())
 	}
 }
