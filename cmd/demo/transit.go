@@ -6,7 +6,7 @@ import (
 	rfsm "github.com/ethan/rfsm/src"
 )
 
-func Simulate() {
+func Transit() {
 	// Composite groups: FIAT / HEDGE / CRYPTO with single internal state
 	def := DefineFiatCryptoFlow()
 

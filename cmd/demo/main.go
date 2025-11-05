@@ -9,5 +9,6 @@ package main
 func main() {
 	// Uncomment each line to run the corresponding demo
 	// Viz()
-	Simulate()
+	// Transit()
+	Actions()
 }
