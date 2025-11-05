@@ -156,3 +156,362 @@ func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 		t.Fatalf("subscriber did not receive ErrNoTransition, got %v", sub.lastErr)
 	}
 }
+
+func TestMachine_Start_EntryHookFailure(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithEntry[any](func(e Event, ctx any) error {
+			return errors.New("entry failed")
+		})).
+		State("B", WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err == nil {
+		t.Fatal("expected error for entry hook failure")
+	} else if err.Error() != "entry failed" {
+		t.Fatalf("expected 'entry failed', got %q", err.Error())
+	}
+	// Verify machine is not started by trying to dispatch
+	if err := m.Dispatch(Event{Name: "test"}); !errors.Is(err, ErrMachineNotStarted) {
+		t.Fatal("machine should not be started after entry hook failure")
+	}
+}
+
+func TestMachine_Stop_ExitHookFailure(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithExit[any](func(e Event, ctx any) error {
+			return errors.New("exit failed")
+		})).
+		State("B", WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	stopErr := m.Stop()
+	if stopErr == nil {
+		t.Fatal("expected error for exit hook failure")
+	}
+	if stopErr.Error() != "exit failed" {
+		t.Fatalf("expected 'exit failed', got %q", stopErr.Error())
+	}
+}
+
+func TestMachine_StartTwice(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start(); err != nil {
+		t.Fatal("starting twice should not error")
+	}
+	if err := m.Stop(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMachine_StopTwice(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Stop(); err != nil {
+		t.Fatal("stopping twice should not error")
+	}
+}
+
+func TestMachine_EntryHookFailure_Rollback(t *testing.T) {
+	var entryA, exitA, entryB int32
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit[any](func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil })).
+		State("B", WithEntry[any](func(e Event, ctx any) error {
+			atomic.AddInt32(&entryB, 1)
+			return errors.New("entry failed")
+		}), WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Initial entry into A
+	if entryA != 1 {
+		t.Fatalf("entryA want 1 got %d", entryA)
+	}
+
+	// Transition to B, but B's entry hook fails
+	if err := m.Dispatch(Event{Name: "go"}); !errors.Is(err, ErrHookFailed) {
+		t.Fatalf("expected ErrHookFailed, got %v", err)
+	}
+
+	// Should still be in A
+	if m.Current() != "A" {
+		t.Fatalf("expected A, got %v", m.Current())
+	}
+
+	// A should have exited and re-entered
+	if exitA != 1 {
+		t.Fatalf("exitA want 1 got %d", exitA)
+	}
+	if entryA != 2 {
+		t.Fatalf("entryA want 2 got %d", entryA)
+	}
+
+	// B should have been entered but failed
+	if entryB != 1 {
+		t.Fatalf("entryB want 1 got %d", entryB)
+	}
+}
+
+func TestMachine_ExitHookFailure(t *testing.T) {
+	var exitA int32
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithExit[any](func(e Event, ctx any) error {
+			atomic.AddInt32(&exitA, 1)
+			return errors.New("exit failed")
+		})).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	if err := m.Dispatch(Event{Name: "go"}); !errors.Is(err, ErrHookFailed) {
+		t.Fatalf("expected ErrHookFailed, got %v", err)
+	}
+
+	// Should still be in A
+	if m.Current() != "A" {
+		t.Fatalf("expected A, got %v", m.Current())
+	}
+
+	if exitA != 1 {
+		t.Fatalf("exitA want 1 got %d", exitA)
+	}
+}
+
+func TestMachine_TransitionToCompositeState(t *testing.T) {
+	// Test transition to a composite state (should drill down to initial child)
+	sub, err := NewDef("sub").
+		State("B1", WithInitial()).
+		State("B2", WithFinal()).
+		Current("B1").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	def, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithSubDef(sub), WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	if m.Current() != "A" {
+		t.Fatalf("initial current want A got %v", m.Current())
+	}
+
+	if err := m.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should drill down to B1 (initial child of B)
+	if m.Current() != "B1" {
+		t.Fatalf("current want B1 got %v", m.Current())
+	}
+
+	path := m.CurrentPath()
+	if len(path) != 2 || path[0] != "B" || path[1] != "B1" {
+		t.Fatalf("path want [B B1] got %v", path)
+	}
+}
+
+func TestMachine_TransitionSameLevel(t *testing.T) {
+	// Test transition between states at the same level (no exit/entry of parent)
+	sub, err := NewDef("sub").
+		State("A1", WithInitial()).
+		State("A2", WithFinal()).
+		Current("A1").
+		On("switch", "A1", "A2").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	def, err := NewDef("test").
+		State("A", WithSubDef(sub), WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Initial state should be A1
+	if m.Current() != "A1" {
+		t.Fatalf("initial current want A1 got %v", m.Current())
+	}
+
+	if err := m.Dispatch(Event{Name: "switch"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should transition to A2 (same parent A)
+	if m.Current() != "A2" {
+		t.Fatalf("current want A2 got %v", m.Current())
+	}
+
+	// A should still be active
+	if !m.IsActive("A") {
+		t.Fatal("A should still be active")
+	}
+}
+
+func TestMachine_EventWithArgs(t *testing.T) {
+	var receivedArgs []any
+	def, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B", WithAction[any](func(e Event, ctx any) error {
+			receivedArgs = e.Args
+			return nil
+		})).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	args := []any{42, "test", true}
+	if err := m.Dispatch(Event{Name: "go", Args: args}); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(receivedArgs) != len(args) {
+		t.Fatalf("args length want %d got %d", len(args), len(receivedArgs))
+	}
+	if receivedArgs[0] != 42 {
+		t.Fatalf("arg[0] want 42 got %v", receivedArgs[0])
+	}
+	if receivedArgs[1] != "test" {
+		t.Fatalf("arg[1] want 'test' got %v", receivedArgs[1])
+	}
+	if receivedArgs[2] != true {
+		t.Fatalf("arg[2] want true got %v", receivedArgs[2])
+	}
+}
+
+func TestMachine_GuardBlocksTransition(t *testing.T) {
+	var guardCalled int32
+	allow := false
+	def, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B", WithGuard[any](func(e Event, ctx any) bool {
+			atomic.AddInt32(&guardCalled, 1)
+			return allow
+		})).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 2)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Guard returns false, should block transition
+	if err := m.Dispatch(Event{Name: "go"}); !errors.Is(err, ErrNoTransition) {
+		t.Fatalf("expected ErrNoTransition, got %v", err)
+	}
+
+	if atomic.LoadInt32(&guardCalled) != 1 {
+		t.Fatalf("guard should be called once, got %d", guardCalled)
+	}
+
+	if m.Current() != "A" {
+		t.Fatalf("should still be in A, got %v", m.Current())
+	}
+
+	// Allow transition
+	allow = true
+	if err := m.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if atomic.LoadInt32(&guardCalled) != 2 {
+		t.Fatalf("guard should be called twice, got %d", guardCalled)
+	}
+
+	if m.Current() != "B" {
+		t.Fatalf("should be in B, got %v", m.Current())
+	}
+}

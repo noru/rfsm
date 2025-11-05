@@ -255,3 +255,97 @@ func TestBuildValidation_TransitionToUndefined(t *testing.T) {
 		t.Fatalf("expected 'transition to undefined state \"C\"', got %q", err.Error())
 	}
 }
+
+func TestWithDescription(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithDescription("Initial state")).
+		State("B", WithFinal(), WithDescription("Final state")).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.States["A"].Description != "Initial state" {
+		t.Fatalf("expected 'Initial state', got %q", def.States["A"].Description)
+	}
+	if def.States["B"].Description != "Final state" {
+		t.Fatalf("expected 'Final state', got %q", def.States["B"].Description)
+	}
+}
+
+func TestInitialChild(t *testing.T) {
+	// Create a sub-definition first
+	sub, err := NewDef("sub").
+		State("A1", WithInitial()).
+		State("A2", WithFinal()).
+		Current("A1").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create main definition with A having children
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithSubDef(sub)).
+		State("B", WithFinal()).
+		Current("A").
+		InitialChild("A", "A2"). // Override initial child
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.States["A"].InitialChild != "A2" {
+		t.Fatalf("expected InitialChild 'A2', got %q", def.States["A"].InitialChild)
+	}
+	if len(def.States["A"].Children) == 0 {
+		t.Fatal("A should have children")
+	}
+}
+
+func TestIsBeforeIsAfter(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B").
+		State("C").
+		State("D", WithFinal()).
+		Current("A").
+		On("ab", "A", "B").
+		On("bc", "B", "C").
+		On("cd", "C", "D").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	before, err := def.IsBefore("A", "D")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !before {
+		t.Fatal("A should be before D")
+	}
+
+	after, err := def.IsAfter("D", "A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !after {
+		t.Fatal("D should be after A")
+	}
+
+	before, err = def.IsBefore("A", "A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before {
+		t.Fatal("A should not be before A")
+	}
+
+	after, err = def.IsAfter("A", "A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after {
+		t.Fatal("A should not be after A")
+	}
+}

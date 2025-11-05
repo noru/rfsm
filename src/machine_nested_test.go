@@ -67,3 +67,65 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 		t.Fatalf("parent transition to B failed, got %v", m.Current())
 	}
 }
+
+func TestNested_MultiLevel(t *testing.T) {
+	// Test 3-level nesting: Root -> A -> A1 -> A1a
+	level3, err := NewDef("level3").
+		State("A1a", WithInitial()).
+		State("A1b", WithFinal()).
+		Current("A1a").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	level2, err := NewDef("level2").
+		State("A1", WithSubDef(level3), WithInitial()).
+		State("A2", WithFinal()).
+		Current("A1").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	def, err := NewDef("multi").
+		State("A", WithSubDef(level2), WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A1a", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil, 8)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Initial path should be [A, A1, A1a]
+	path := m.CurrentPath()
+	if len(path) != 3 || path[0] != "A" || path[1] != "A1" || path[2] != "A1a" {
+		t.Fatalf("initial path want [A A1 A1a], got %v", path)
+	}
+
+	// Verify all states are active
+	if !m.IsActive("A") {
+		t.Fatal("A should be active")
+	}
+	if !m.IsActive("A1") {
+		t.Fatal("A1 should be active")
+	}
+	if !m.IsActive("A1a") {
+		t.Fatal("A1a should be active")
+	}
+
+	// Transition from deepest level
+	if err := m.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	if m.Current() != "B" {
+		t.Fatalf("want B got %v", m.Current())
+	}
+}

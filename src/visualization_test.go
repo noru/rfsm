@@ -69,6 +69,26 @@ func TestToMermaid_WithMarkers_And_DOT(t *testing.T) {
 	}
 }
 
+func TestToDOT(t *testing.T) {
+	def, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dot := def.ToDOT()
+	if want := "digraph fsm"; !contains(dot, want) {
+		t.Fatalf("missing %q", want)
+	}
+	if want := "\"A\" -> \"B\""; !contains(dot, want) {
+		t.Fatalf("missing %q", want)
+	}
+}
+
 func contains(s, sub string) bool {
 	return len(s) >= len(sub) && (func() bool { return (len(find(s, sub)) > 0) })()
 }
