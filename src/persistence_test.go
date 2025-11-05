@@ -11,7 +11,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 		State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithInitial()).
 		State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
 		Current("A").
-		On("go", WithFrom("A"), WithTo("B")).
+		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
 		Build()
 	if err != nil {
 		t.Fatal(err)

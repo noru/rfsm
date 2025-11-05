@@ -34,11 +34,15 @@ type StateDef struct {
 	Final bool
 }
 
+type TransitionKey struct {
+	From StateID
+	To   StateID
+}
+
 // Transition definition (immutable)
 type TransitionDef struct {
-	From   StateID
-	Event  string
-	To     StateID
+	Key    TransitionKey
+	Name   string
 	Guard  GuardFunc
 	Action ActionFunc
 }

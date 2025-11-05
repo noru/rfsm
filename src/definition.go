@@ -5,7 +5,7 @@ import "fmt"
 // Builder interfaces
 type DefinitionBuilder interface {
 	State(id StateID, opts ...StateOption) DefinitionBuilder
-	On(event string, opts ...TransitionOption) DefinitionBuilder
+	On(tk TransitionKey, opts ...TransitionOption) DefinitionBuilder
 	Current(id StateID) DefinitionBuilder
 	InitialChild(parent StateID, child StateID) DefinitionBuilder
 	Build() (*Definition, error)
@@ -18,7 +18,7 @@ type TransitionOption func(*TransitionDef)
 type builder struct {
 	name        string
 	states      map[StateID]StateDef
-	transitions []TransitionDef
+	transitions map[TransitionKey]TransitionDef
 	current     *StateID
 	hasInitial  bool
 	hasFinal    bool
@@ -28,7 +28,7 @@ func NewDef(name string) DefinitionBuilder {
 	return &builder{
 		name:        name,
 		states:      make(map[StateID]StateDef),
-		transitions: make([]TransitionDef, 0, 8),
+		transitions: make(map[TransitionKey]TransitionDef),
 	}
 }
 
@@ -41,8 +41,7 @@ func WithFinal() StateOption                  { return func(s *StateDef) { s.Fin
 func WithInitial() StateOption                { return func(s *StateDef) { s.Initial = true } }
 
 // Transition options
-func WithFrom(id StateID) TransitionOption      { return func(t *TransitionDef) { t.From = id } }
-func WithTo(id StateID) TransitionOption        { return func(t *TransitionDef) { t.To = id } }
+func WithName(name string) TransitionOption     { return func(t *TransitionDef) { t.Name = name } }
 func WithGuard(fn GuardFunc) TransitionOption   { return func(t *TransitionDef) { t.Guard = fn } }
 func WithAction(fn ActionFunc) TransitionOption { return func(t *TransitionDef) { t.Action = fn } }
 
@@ -85,7 +84,12 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 			def.InitialChild = sub.Current
 		}
 		// merge transitions
-		b.transitions = append(b.transitions, sub.Transitions...)
+		for _, t := range sub.Transitions {
+			if _, ok := b.transitions[t.Key]; ok {
+				panic(fmt.Sprintf("duplicate transition key %q when merging sub definition into %q", t.Key, id))
+			}
+			b.transitions[t.Key] = t
+		}
 		// clear build-time field
 		def.SubDef = nil
 	}
@@ -94,12 +98,15 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 	return b
 }
 
-func (b *builder) On(event string, opts ...TransitionOption) DefinitionBuilder {
-	t := TransitionDef{Event: event}
+func (b *builder) On(tk TransitionKey, opts ...TransitionOption) DefinitionBuilder {
+	t, ok := b.transitions[tk]
+	if !ok {
+		t = TransitionDef{Key: tk}
+	}
 	for _, opt := range opts {
 		opt(&t)
 	}
-	b.transitions = append(b.transitions, t)
+	b.transitions[tk] = t
 	return b
 }
 
@@ -131,15 +138,18 @@ func (b *builder) Build() (*Definition, error) {
 	}
 	// Validate: at least one Initial state
 	// Validate: all transitions reference defined states
-	for _, t := range b.transitions {
-		if _, ok := b.states[t.From]; !ok {
-			return nil, fmt.Errorf("transition from undefined state %q", t.From)
+	for k, t := range b.transitions {
+		if k != t.Key {
+			return nil, fmt.Errorf("transition key mismatch for transition %q from %q to %q", t.Name, k.From, k.To)
 		}
-		if _, ok := b.states[t.To]; !ok {
-			return nil, fmt.Errorf("transition to undefined state %q", t.To)
+		if _, ok := b.states[k.From]; !ok {
+			return nil, fmt.Errorf("transition from undefined state %q", k.From)
 		}
-		if t.Event == "" {
-			return nil, fmt.Errorf("transition event is empty")
+		if _, ok := b.states[k.To]; !ok {
+			return nil, fmt.Errorf("transition to undefined state %q", k.To)
+		}
+		if t.Name == "" {
+			return nil, fmt.Errorf("transition name is empty")
 		}
 	}
 	// Validate: hierarchy
@@ -177,10 +187,14 @@ func (b *builder) Build() (*Definition, error) {
 			}
 		}
 	}
+	transitions := make([]TransitionDef, 0, len(b.transitions))
+	for _, t := range b.transitions {
+		transitions = append(transitions, t)
+	}
 	d := &Definition{
 		Name:        b.name,
 		States:      b.states,
-		Transitions: b.transitions,
+		Transitions: transitions,
 		Current:     *b.current,
 	}
 	return d, nil

@@ -28,8 +28,8 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 		State("A", WithSubDef(sub), WithInitial()).
 		State("B", WithFinal()).
 		Current("A").
-		On("go", WithFrom("A1"), WithTo("B")).
-		On("back", WithFrom("A"), WithTo("B")).
+		On(TransitionKey{From: "A1", To: "B"}, WithName("go")).
+		On(TransitionKey{From: "A", To: "B"}, WithName("back")).
 		Build()
 	if err != nil {
 		t.Fatal(err)

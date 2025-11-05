@@ -48,39 +48,39 @@ func DefineFiatCryptoFlow() *rfsm.Definition {
 		Current("INIT").
 
 		// ---- FIAT Stage ----
-		On("start_fiat", rfsm.WithFrom("PENDING_FIAT_DEPOSIT"), rfsm.WithTo("FIAT")).
-		On("overdue", rfsm.WithFrom("FIAT"), rfsm.WithTo("PENDING_FIAT_EXPIRED")).
-		On("manual_refund", rfsm.WithFrom("FIAT"), rfsm.WithTo("PENDING_FIAT_REFUND")).
-		On("success", rfsm.WithFrom("FIAT"), rfsm.WithTo("PENDING_FIAT_DEPOSITED")).
-		On("failed", rfsm.WithFrom("FIAT"), rfsm.WithTo("PENDING_FIAT_DEPOSIT_FAILED")).
-		On("refund", rfsm.WithFrom("PENDING_FIAT_REFUND"), rfsm.WithTo("REFUNDED")).
-		On("to_failed", rfsm.WithFrom("PENDING_FIAT_DEPOSIT_FAILED"), rfsm.WithTo("FAILED")).
-		On("expire", rfsm.WithFrom("PENDING_FIAT_EXPIRED"), rfsm.WithTo("EXPIRED")).
+		On(rfsm.TransitionKey{From: "PENDING_FIAT_DEPOSIT", To: "FIAT"}, rfsm.WithName("start_fiat")).
+		On(rfsm.TransitionKey{From: "FIAT", To: "PENDING_FIAT_EXPIRED"}, rfsm.WithName("overdue")).
+		On(rfsm.TransitionKey{From: "FIAT", To: "PENDING_FIAT_REFUND"}, rfsm.WithName("manual_refund")).
+		On(rfsm.TransitionKey{From: "FIAT", To: "PENDING_FIAT_DEPOSITED"}, rfsm.WithName("success")).
+		On(rfsm.TransitionKey{From: "FIAT", To: "PENDING_FIAT_DEPOSIT_FAILED"}, rfsm.WithName("failed")).
+		On(rfsm.TransitionKey{From: "PENDING_FIAT_REFUND", To: "REFUNDED"}, rfsm.WithName("refund")).
+		On(rfsm.TransitionKey{From: "PENDING_FIAT_DEPOSIT_FAILED", To: "FAILED"}, rfsm.WithName("to_failed")).
+		On(rfsm.TransitionKey{From: "PENDING_FIAT_EXPIRED", To: "EXPIRED"}, rfsm.WithName("expire")).
 
 		// ---- HEDGE Stage ----
-		On("to_hedge", rfsm.WithFrom("PENDING_FIAT_DEPOSITED"), rfsm.WithTo("HEDGE")).
-		On("requote", rfsm.WithFrom("PENDING_HEDGE_REQUOTE"), rfsm.WithTo("HEDGE")).
-		On("executed", rfsm.WithFrom("HEDGE"), rfsm.WithTo("PENDING_HEDGE_EXECUTED")).
-		On("failed", rfsm.WithFrom("HEDGE"), rfsm.WithTo("PENDING_HEDGE_FAILED")).
-		On("retry_hedge", rfsm.WithFrom("PENDING_HEDGE_FAILED"), rfsm.WithTo("PENDING_HEDGE_REQUOTE")).
+		On(rfsm.TransitionKey{From: "PENDING_FIAT_DEPOSITED", To: "HEDGE"}, rfsm.WithName("to_hedge")).
+		On(rfsm.TransitionKey{From: "PENDING_HEDGE_REQUOTE", To: "HEDGE"}, rfsm.WithName("requote")).
+		On(rfsm.TransitionKey{From: "HEDGE", To: "PENDING_HEDGE_EXECUTED"}, rfsm.WithName("executed")).
+		On(rfsm.TransitionKey{From: "HEDGE", To: "PENDING_HEDGE_FAILED"}, rfsm.WithName("failed")).
+		On(rfsm.TransitionKey{From: "PENDING_HEDGE_FAILED", To: "PENDING_HEDGE_REQUOTE"}, rfsm.WithName("retry_hedge")).
 		// Optional unwind paths
-		On("revert_unwind", rfsm.WithFrom("PENDING_HEDGE_EXECUTED"), rfsm.WithTo("PENDING_HEDGE_UNWIND")).
-		On("requote", rfsm.WithFrom("PENDING_HEDGE_UNWIND"), rfsm.WithTo("PENDING_HEDGE_REQUOTE")).
-		On("cancel_trade", rfsm.WithFrom("PENDING_HEDGE_UNWIND"), rfsm.WithTo("PENDING_FIAT_REFUND")).
+		On(rfsm.TransitionKey{From: "PENDING_HEDGE_EXECUTED", To: "PENDING_HEDGE_UNWIND"}, rfsm.WithName("revert_unwind")).
+		On(rfsm.TransitionKey{From: "PENDING_HEDGE_UNWIND", To: "PENDING_HEDGE_REQUOTE"}, rfsm.WithName("requote")).
+		On(rfsm.TransitionKey{From: "PENDING_HEDGE_UNWIND", To: "PENDING_FIAT_REFUND"}, rfsm.WithName("cancel_trade")).
 
 		// Proceed to crypto
-		On("to_crypto", rfsm.WithFrom("PENDING_HEDGE_EXECUTED"), rfsm.WithTo("PENDING_CRYPTO_WITHDRAW")).
+		On(rfsm.TransitionKey{From: "PENDING_HEDGE_EXECUTED", To: "PENDING_CRYPTO_WITHDRAW"}, rfsm.WithName("to_crypto")).
 
 		// ---- CRYPTO Stage ----
-		On("start_crypto", rfsm.WithFrom("PENDING_CRYPTO_WITHDRAW"), rfsm.WithTo("CRYPTO")).
-		On("failed", rfsm.WithFrom("CRYPTO"), rfsm.WithTo("PENDING_CRYPTO_WITHDRAW_FAILED")).
-		On("success", rfsm.WithFrom("CRYPTO"), rfsm.WithTo("PENDING_CRYPTO_WITHDRAWN")).
-		On("retry", rfsm.WithFrom("PENDING_CRYPTO_WITHDRAW_FAILED"), rfsm.WithTo("CRYPTO")).
-		On("unwind", rfsm.WithFrom("PENDING_CRYPTO_WITHDRAW_FAILED"), rfsm.WithTo("PENDING_HEDGE_UNWIND")).
-		On("to_success", rfsm.WithFrom("PENDING_CRYPTO_WITHDRAWN"), rfsm.WithTo("SUCCESS")).
+		On(rfsm.TransitionKey{From: "PENDING_CRYPTO_WITHDRAW", To: "CRYPTO"}, rfsm.WithName("start_crypto")).
+		On(rfsm.TransitionKey{From: "CRYPTO", To: "PENDING_CRYPTO_WITHDRAW_FAILED"}, rfsm.WithName("failed")).
+		On(rfsm.TransitionKey{From: "CRYPTO", To: "PENDING_CRYPTO_WITHDRAWN"}, rfsm.WithName("success")).
+		On(rfsm.TransitionKey{From: "PENDING_CRYPTO_WITHDRAW_FAILED", To: "CRYPTO"}, rfsm.WithName("retry")).
+		On(rfsm.TransitionKey{From: "PENDING_CRYPTO_WITHDRAW_FAILED", To: "PENDING_HEDGE_UNWIND"}, rfsm.WithName("unwind")).
+		On(rfsm.TransitionKey{From: "PENDING_CRYPTO_WITHDRAWN", To: "SUCCESS"}, rfsm.WithName("to_success")).
 
 		// ---- Initial fan-in/out ----
-		On("init_next", rfsm.WithFrom("INIT"), rfsm.WithTo("PENDING_FIAT_DEPOSIT")).
+		On(rfsm.TransitionKey{From: "INIT", To: "PENDING_FIAT_DEPOSIT"}, rfsm.WithName("init_next")).
 		Build()
 
 	return def

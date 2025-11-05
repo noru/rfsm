@@ -106,12 +106,12 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 	// render transitions
 	for i := range d.Transitions {
 		t := d.Transitions[i]
-		buf.WriteString(string(t.From))
+		buf.WriteString(string(t.Key.From))
 		buf.WriteString(" --> ")
-		buf.WriteString(string(t.To))
+		buf.WriteString(string(t.Key.To))
 		// label
 		var needLabel bool
-		if t.Event != "" {
+		if t.Name != "" {
 			needLabel = true
 		}
 		if opts.ShowGuards && t.Guard != nil {
@@ -123,8 +123,8 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 		if needLabel {
 			buf.WriteString(" : ")
 			first := true
-			if t.Event != "" {
-				buf.WriteString(t.Event)
+			if t.Name != "" {
+				buf.WriteString(t.Name)
 				first = false
 			}
 			if opts.ShowGuards && t.Guard != nil {
@@ -254,13 +254,13 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	for i := range d.Transitions {
 		t := d.Transitions[i]
 		buf.WriteString("  \"")
-		buf.WriteString(string(t.From))
+		buf.WriteString(string(t.Key.From))
 		buf.WriteString("\" -> \"")
-		buf.WriteString(string(t.To))
+		buf.WriteString(string(t.Key.To))
 		buf.WriteString("\"")
 		// label
 		var need bool
-		if t.Event != "" {
+		if t.Name != "" {
 			need = true
 		}
 		if opts.ShowGuards && t.Guard != nil {
@@ -272,8 +272,8 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 		if need {
 			buf.WriteString(" [label=\"")
 			first := true
-			if t.Event != "" {
-				buf.WriteString(t.Event)
+			if t.Name != "" {
+				buf.WriteString(t.Name)
 				first = false
 			}
 			if opts.ShowGuards && t.Guard != nil {

@@ -31,10 +31,13 @@ func NewMachine(def *Definition, ctx any, buf int) *Machine {
 		buf = 64
 	}
 	return &Machine{
-		def:    def,
-		ctx:    ctx,
-		events: make(chan Event, buf),
-		done:   make(chan struct{}),
+		def:         def,
+		ctx:         ctx,
+		events:      make(chan Event, buf),
+		done:        make(chan struct{}),
+		activePath:  make([]StateID, 0),
+		visited:     make(map[StateID]bool),
+		subscribers: make([]Subscriber, 0),
 	}
 }
 
@@ -151,16 +154,15 @@ func (m *Machine) Dispatch(e Event) error {
 	if !started {
 		return ErrMachineNotStarted
 	}
-	// 使用一条结果通道等待完成
+	// Use a result channel to wait for completion
 	done := make(chan error, 1)
-	// 通过一个特殊事件封装同步等待
+	// Wrap the event with a sync wait mechanism
 	wrapper := Event{
 		Name: e.Name,
 		Args: append([]any{}, e.Args...),
 	}
-	// 利用 goroutine 等待处理完成信号
-	// 这里的完成信号通过订阅或内联处理返回
-	// 简化：直接在事件处理完成后写入 done（见 loop 内）
+	// Wait for processing completion signal
+	// The completion signal is returned through the done channel (see loop implementation)
 	wrapper.Args = append(wrapper.Args, done)
 	select {
 	case m.events <- wrapper:
@@ -234,7 +236,7 @@ func (m *Machine) handleEvent(e Event) error {
 		s := path[i]
 		for j := range m.def.Transitions {
 			t := &m.def.Transitions[j]
-			if t.From == s && t.Event == e.Name {
+			if t.Key.From == s && t.Name == e.Name {
 				if t.Guard == nil || t.Guard(e, m.ctx) {
 					matched = t
 					source = s
@@ -249,7 +251,7 @@ func (m *Machine) handleEvent(e Event) error {
 	}
 
 	// Compute sequences via LCA between source and target
-	to := matched.To
+	to := matched.Key.To
 	exitSeq, entrySeq := m.computeTransitionSequences(source, to)
 	// Exit
 	for _, sid := range exitSeq {

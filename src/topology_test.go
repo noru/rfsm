@@ -6,10 +6,10 @@ func TestTopology_DAG(t *testing.T) {
 	def, err := NewDef("dag").
 		State("A", WithInitial()).State("B").State("C").State("D", WithFinal()).
 		Current("A").
-		On("ab", WithFrom("A"), WithTo("B")).
-		On("ac", WithFrom("A"), WithTo("C")).
-		On("bd", WithFrom("B"), WithTo("D")).
-		On("cd", WithFrom("C"), WithTo("D")).
+		On(TransitionKey{From: "A", To: "B"}, WithName("ab")).
+		On(TransitionKey{From: "A", To: "C"}, WithName("ac")).
+		On(TransitionKey{From: "B", To: "D"}, WithName("bd")).
+		On(TransitionKey{From: "C", To: "D"}, WithName("cd")).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -31,8 +31,8 @@ func TestTopology_Cycle(t *testing.T) {
 	def, err := NewDef("cyc").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On("ab", WithFrom("A"), WithTo("B")).
-		On("ba", WithFrom("B"), WithTo("A")).
+		On(TransitionKey{From: "A", To: "B"}, WithName("ab")).
+		On(TransitionKey{From: "B", To: "A"}, WithName("ba")).
 		Build()
 	if err != nil {
 		t.Fatal(err)

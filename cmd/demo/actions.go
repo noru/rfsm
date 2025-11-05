@@ -8,11 +8,11 @@ import (
 )
 
 type demoContext struct {
-	balance     int
-	attempts    int
-	validated   bool
-	processed   bool
-	logs        []string
+	balance   int
+	attempts  int
+	validated bool
+	processed bool
+	logs      []string
 }
 
 func (ctx *demoContext) log(msg string) {
@@ -24,7 +24,7 @@ func Actions() {
 	fmt.Println()
 
 	ctx := &demoContext{
-		balance: 100,
+		balance:  100,
 		attempts: 0,
 	}
 
@@ -105,28 +105,21 @@ func defineActionsDemo(ctx *demoContext) *rfsm.Definition {
 		State("SUCCESS", rfsm.WithFinal(), rfsm.WithEntry(entryHook("SUCCESS", ctx))).
 		State("FAILED", rfsm.WithFinal(), rfsm.WithEntry(entryHook("FAILED", ctx))).
 		Current("INIT").
-
-		On("start", rfsm.WithFrom("INIT"), rfsm.WithTo("PROCESSING"),
+		On(rfsm.TransitionKey{From: "INIT", To: "PROCESSING"}, rfsm.WithName("start"),
 			rfsm.WithAction(processAction(ctx))).
-
-		On("validate", rfsm.WithFrom("PROCESSING"), rfsm.WithTo("VALIDATING"),
+		On(rfsm.TransitionKey{From: "PROCESSING", To: "VALIDATING"}, rfsm.WithName("validate"),
 			rfsm.WithGuard(validateGuard(ctx)),
 			rfsm.WithAction(validateAction(ctx))).
-
-		On("validate", rfsm.WithFrom("VALIDATING"), rfsm.WithTo("VALIDATING"),
+		On(rfsm.TransitionKey{From: "VALIDATING", To: "VALIDATING"}, rfsm.WithName("validate"),
 			rfsm.WithGuard(validateGuard(ctx)),
 			rfsm.WithAction(validateAction(ctx))).
-
-		On("process", rfsm.WithFrom("VALIDATING"), rfsm.WithTo("PROCESSING"),
+		On(rfsm.TransitionKey{From: "VALIDATING", To: "PROCESSING"}, rfsm.WithName("process"),
 			rfsm.WithAction(processAction(ctx))).
-
-		On("complete", rfsm.WithFrom("PROCESSING"), rfsm.WithTo("SUCCESS"),
+		On(rfsm.TransitionKey{From: "PROCESSING", To: "SUCCESS"}, rfsm.WithName("complete"),
 			rfsm.WithGuard(successGuard(ctx)),
 			rfsm.WithAction(completeAction(ctx))).
-
-		On("fail", rfsm.WithFrom("PROCESSING"), rfsm.WithTo("FAILED"),
+		On(rfsm.TransitionKey{From: "PROCESSING", To: "FAILED"}, rfsm.WithName("fail"),
 			rfsm.WithAction(failAction(ctx))).
-
 		Build()
 
 	return def
