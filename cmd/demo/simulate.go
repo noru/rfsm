@@ -70,8 +70,12 @@ func simulateMachine(def *rfsm.Definition) {
 
 		// Check if reached final state
 		if st, ok := def.States[m.Current()]; ok && st.Final {
-			fmt.Printf("✅ Reached final state: %s\n", m.Current())
-			break
+			if st.Parent == "" {
+				fmt.Printf("✅ Reached final state: %s\n", m.Current())
+				break
+			} else {
+				fmt.Printf("✅ Reached final state in composite: %s\n", m.Current())
+			}
 		}
 	}
 
