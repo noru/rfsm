@@ -46,7 +46,7 @@ type Definition struct {
 	Name        string
 	States      map[StateID]StateDef
 	Transitions []TransitionDef
-	Initial     StateID
+	Current     StateID
 	// cached topology (computed on demand)
 	topology *GraphTopology
 }
@@ -59,5 +59,3 @@ var (
 	ErrHookFailed        = errors.New("hook failed")
 	ErrActionFailed      = errors.New("action failed")
 )
-
-

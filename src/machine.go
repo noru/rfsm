@@ -45,7 +45,7 @@ func (m *Machine) Start() error {
 		return nil
 	}
 	// compute initial active path and enter hooks from root to leaf
-	root := m.def.Initial
+	root := m.def.Current
 	path := []StateID{root}
 	cur := root
 	for {
@@ -369,5 +369,3 @@ func (m *Machine) pathTo(s StateID) []StateID {
 	}
 	return rev
 }
-
-

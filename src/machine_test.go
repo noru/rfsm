@@ -11,7 +11,7 @@ func TestMachine_StartStop_Hooks(t *testing.T) {
 	var entry, exit int32
 	def, err := NewDef("hooks").
 		State("S", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entry, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exit, 1); return nil })).
-		Initial("S").
+		Current("S").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func TestMachine_StartStop_Hooks(t *testing.T) {
 
 func TestMachine_Dispatch_BeforeStart_AfterStop(t *testing.T) {
 	def, err := NewDef("b").
-		State("A").Initial("A").
+		State("A").Current("A").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +67,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 	var stamp int64
 	def, err := NewDef("sync").
 		State("A").State("B").
-		Initial("A").
+		Current("A").
 		On("go", WithFrom("A"), WithTo("B"), WithAction(func(e Event, ctx any) error {
 			time.Sleep(40 * time.Millisecond)
 			atomic.StoreInt64(&stamp, time.Now().UnixNano())
@@ -101,7 +101,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 func TestMachine_IsActive(t *testing.T) {
 	def, err := NewDef("visit").
 		State("A").State("B").
-		Initial("A").
+		Current("A").
 		On("go", WithFrom("A"), WithTo("B")).
 		Build()
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *errSub) OnTransition(from StateID, to StateID, e Event, err error) {
 
 func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 	def, err := NewDef("sub").
-		State("A").Initial("A").
+		State("A").Current("A").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -156,5 +156,3 @@ func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 		t.Fatalf("subscriber did not receive ErrNoTransition, got %v", sub.lastErr)
 	}
 }
-
-

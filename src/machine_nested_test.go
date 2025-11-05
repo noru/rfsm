@@ -18,7 +18,7 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 	sub, err := NewDef("sub").
 		State("A1").
 		State("A2").
-		Initial("A1").
+		Current("A1").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +27,7 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 	def, err := NewDef("nested").
 		State("A", WithSubDef(sub)).
 		State("B").
-		Initial("A").
+		Current("A").
 		On("go", WithFrom("A1"), WithTo("B")).
 		On("back", WithFrom("A"), WithTo("B")).
 		Build()

@@ -10,7 +10,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
     def, err := NewDef("p").
         State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil })).
         State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil })).
-        Initial("A").
+        Current("A").
         On("go", WithFrom("A"), WithTo("B")).
         Build()
     if err != nil { t.Fatal(err) }

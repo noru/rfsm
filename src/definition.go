@@ -6,7 +6,7 @@ import "fmt"
 type DefinitionBuilder interface {
 	State(id StateID, opts ...StateOption) DefinitionBuilder
 	On(event string, opts ...TransitionOption) DefinitionBuilder
-	Initial(id StateID) DefinitionBuilder
+	Current(id StateID) DefinitionBuilder
 	InitialChild(parent StateID, child StateID) DefinitionBuilder
 	Build() (*Definition, error)
 }
@@ -19,7 +19,7 @@ type builder struct {
 	name        string
 	states      map[StateID]StateDef
 	transitions []TransitionDef
-	initial     *StateID
+	current     *StateID
 }
 
 func NewDef(name string) DefinitionBuilder {
@@ -64,7 +64,7 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 		}
 		def.Children = append(def.Children, children...)
 		if def.InitialChild == "" {
-			def.InitialChild = sub.Initial
+			def.InitialChild = sub.Current
 		}
 		// merge transitions
 		b.transitions = append(b.transitions, sub.Transitions...)
@@ -84,10 +84,8 @@ func (b *builder) On(event string, opts ...TransitionOption) DefinitionBuilder {
 	return b
 }
 
-// removed chained TransitionBuilder in favor of option-style On
-
-func (b *builder) Initial(id StateID) DefinitionBuilder {
-	b.initial = &id
+func (b *builder) Current(id StateID) DefinitionBuilder {
+	b.current = &id
 	return b
 }
 
@@ -99,12 +97,12 @@ func (b *builder) InitialChild(parent StateID, child StateID) DefinitionBuilder 
 }
 
 func (b *builder) Build() (*Definition, error) {
-	if b.initial == nil {
-		return nil, fmt.Errorf("initial state not set")
+	if b.current == nil {
+		return nil, fmt.Errorf("current state not set")
 	}
-	// Validate: initial exists
-	if _, ok := b.states[*b.initial]; !ok {
-		return nil, fmt.Errorf("initial state %q not defined", *b.initial)
+	// Validate: current exists
+	if _, ok := b.states[*b.current]; !ok {
+		return nil, fmt.Errorf("current state %q not defined", *b.current)
 	}
 	// Validate: all transitions reference defined states
 	for _, t := range b.transitions {
@@ -157,7 +155,7 @@ func (b *builder) Build() (*Definition, error) {
 		Name:        b.name,
 		States:      b.states,
 		Transitions: b.transitions,
-		Initial:     *b.initial,
+		Current:     *b.current,
 	}
 	return d, nil
 }

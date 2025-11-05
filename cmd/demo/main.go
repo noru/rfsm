@@ -10,17 +10,17 @@ func main() {
 	// Composite groups: FIAT / HEDGE / CRYPTO with single internal state
 	fiatSub, _ := rfsm.NewDef("FIAT_SUB").
 		State("fiat_internal").
-		Initial("fiat_internal").
+		Current("fiat_internal").
 		Build()
 
 	hedgeSub, _ := rfsm.NewDef("HEDGE_SUB").
 		State("hedge_internal").
-		Initial("hedge_internal").
+		Current("hedge_internal").
 		Build()
 
 	cryptoSub, _ := rfsm.NewDef("CRYPTO_SUB").
 		State("crypto_internal").
-		Initial("crypto_internal").
+		Current("crypto_internal").
 		Build()
 
 	def, _ := rfsm.NewDef("FiatCryptoFlow").
@@ -47,7 +47,7 @@ func main() {
 		State("PENDING_CRYPTO_WITHDRAW").
 		State("PENDING_CRYPTO_WITHDRAW_FAILED").
 		State("PENDING_CRYPTO_WITHDRAWN").
-		Initial("INIT").
+		Current("INIT").
 
 		// ---- FIAT Stage ----
 		On("start_fiat", rfsm.WithFrom("PENDING_FIAT_DEPOSIT"), rfsm.WithTo("FIAT")).

@@ -5,7 +5,7 @@ import "testing"
 func TestTopology_DAG(t *testing.T) {
     def, err := NewDef("dag").
         State("A").State("B").State("C").State("D").
-        Initial("A").
+        Current("A").
         On("ab", WithFrom("A"), WithTo("B")).
         On("ac", WithFrom("A"), WithTo("C")).
         On("bd", WithFrom("B"), WithTo("D")).
@@ -22,7 +22,7 @@ func TestTopology_DAG(t *testing.T) {
 func TestTopology_Cycle(t *testing.T) {
     def, err := NewDef("cyc").
         State("A").State("B").
-        Initial("A").
+        Current("A").
         On("ab", WithFrom("A"), WithTo("B")).
         On("ba", WithFrom("B"), WithTo("A")).
         Build()
