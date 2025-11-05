@@ -9,9 +9,9 @@ type Subscriber interface {
 	OnTransition(from StateID, to StateID, e Event, err error)
 }
 
-type Machine struct {
+type Machine[C any] struct {
 	def    *Definition
-	ctx    any
+	ctx    C
 	events chan Event
 	done   chan struct{}
 	wg     sync.WaitGroup
@@ -26,11 +26,11 @@ type Machine struct {
 	subscribers []Subscriber
 }
 
-func NewMachine(def *Definition, ctx any, buf int) *Machine {
+func NewMachine[C any](def *Definition, ctx C, buf int) *Machine[C] {
 	if buf <= 0 {
 		buf = 64
 	}
-	return &Machine{
+	return &Machine[C]{
 		def:         def,
 		ctx:         ctx,
 		events:      make(chan Event, buf),
@@ -41,7 +41,7 @@ func NewMachine(def *Definition, ctx any, buf int) *Machine {
 	}
 }
 
-func (m *Machine) Start() error {
+func (m *Machine[C]) Start() error {
 	m.statusMu.Lock()
 	defer m.statusMu.Unlock()
 	if m.started {
@@ -73,7 +73,7 @@ func (m *Machine) Start() error {
 	m.started = true
 	for _, sid := range m.activePath {
 		if st, ok := m.def.States[sid]; ok && st.OnEntry != nil {
-			if err := st.OnEntry(Event{}, m.ctx); err != nil {
+			if err := st.OnEntry(Event{}, any(m.ctx)); err != nil {
 				m.started = false
 				return err
 			}
@@ -85,7 +85,7 @@ func (m *Machine) Start() error {
 	return nil
 }
 
-func (m *Machine) Stop() error {
+func (m *Machine[C]) Stop() error {
 	m.statusMu.Lock()
 	if !m.started {
 		m.statusMu.Unlock()
@@ -99,7 +99,7 @@ func (m *Machine) Stop() error {
 	path := m.CurrentPath()
 	for i := len(path) - 1; i >= 0; i-- {
 		if st, ok := m.def.States[path[i]]; ok && st.OnExit != nil {
-			if err := st.OnExit(Event{}, m.ctx); err != nil {
+			if err := st.OnExit(Event{}, any(m.ctx)); err != nil {
 				return err
 			}
 		}
@@ -107,14 +107,14 @@ func (m *Machine) Stop() error {
 	return nil
 }
 
-func (m *Machine) Current() StateID {
+func (m *Machine[C]) Current() StateID {
 	m.statusMu.RLock()
 	defer m.statusMu.RUnlock()
 	return m.current
 }
 
 // CurrentPath returns the active path from root to leaf
-func (m *Machine) CurrentPath() []StateID {
+func (m *Machine[C]) CurrentPath() []StateID {
 	m.statusMu.RLock()
 	defer m.statusMu.RUnlock()
 	cp := make([]StateID, len(m.activePath))
@@ -123,7 +123,7 @@ func (m *Machine) CurrentPath() []StateID {
 }
 
 // IsActive reports whether the given state is on the current active path (from root to leaf).
-func (m *Machine) IsActive(s StateID) bool {
+func (m *Machine[C]) IsActive(s StateID) bool {
 	m.statusMu.RLock()
 	defer m.statusMu.RUnlock()
 	for _, id := range m.activePath {
@@ -135,19 +135,19 @@ func (m *Machine) IsActive(s StateID) bool {
 }
 
 // HasVisited reports whether the machine has ever activated the given state since Start.
-func (m *Machine) HasVisited(s StateID) bool {
+func (m *Machine[C]) HasVisited(s StateID) bool {
 	m.statusMu.RLock()
 	defer m.statusMu.RUnlock()
 	return m.visited[s]
 }
 
-func (m *Machine) Subscribe(s Subscriber) {
+func (m *Machine[C]) Subscribe(s Subscriber) {
 	m.subsMu.Lock()
 	m.subscribers = append(m.subscribers, s)
 	m.subsMu.Unlock()
 }
 
-func (m *Machine) Dispatch(e Event) error {
+func (m *Machine[C]) Dispatch(e Event) error {
 	m.statusMu.RLock()
 	started := m.started
 	m.statusMu.RUnlock()
@@ -172,7 +172,7 @@ func (m *Machine) Dispatch(e Event) error {
 	}
 }
 
-func (m *Machine) DispatchAsync(e Event) error {
+func (m *Machine[C]) DispatchAsync(e Event) error {
 	m.statusMu.RLock()
 	started := m.started
 	m.statusMu.RUnlock()
@@ -187,7 +187,7 @@ func (m *Machine) DispatchAsync(e Event) error {
 	}
 }
 
-func (m *Machine) loop() {
+func (m *Machine[C]) loop() {
 	defer m.wg.Done()
 	for {
 		select {
@@ -210,7 +210,7 @@ func (m *Machine) loop() {
 	}
 }
 
-func (m *Machine) notify(from, to StateID, e Event, err error) {
+func (m *Machine[C]) notify(from, to StateID, e Event, err error) {
 	m.subsMu.RLock()
 	subs := append([]Subscriber(nil), m.subscribers...)
 	m.subsMu.RUnlock()
@@ -219,7 +219,7 @@ func (m *Machine) notify(from, to StateID, e Event, err error) {
 	}
 }
 
-func (m *Machine) handleEvent(e Event) error {
+func (m *Machine[C]) handleEvent(e Event) error {
 	m.statusMu.RLock()
 	if !m.started {
 		m.statusMu.RUnlock()
@@ -237,7 +237,7 @@ func (m *Machine) handleEvent(e Event) error {
 		for j := range m.def.Transitions {
 			t := &m.def.Transitions[j]
 			if t.Key.From == s && t.Name == e.Name {
-				if t.Guard == nil || t.Guard(e, m.ctx) {
+				if t.Guard == nil || t.Guard(e, any(m.ctx)) {
 					matched = t
 					source = s
 					break
@@ -256,7 +256,7 @@ func (m *Machine) handleEvent(e Event) error {
 	// Exit
 	for _, sid := range exitSeq {
 		if st, ok := m.def.States[sid]; ok && st.OnExit != nil {
-			if err := st.OnExit(e, m.ctx); err != nil {
+			if err := st.OnExit(e, any(m.ctx)); err != nil {
 				m.notify(from, from, e, ErrHookFailed)
 				return ErrHookFailed
 			}
@@ -264,11 +264,11 @@ func (m *Machine) handleEvent(e Event) error {
 	}
 
 	if matched.Action != nil {
-		if err := matched.Action(e, m.ctx); err != nil {
+		if err := matched.Action(e, any(m.ctx)); err != nil {
 			// Rollback: re-enter exited states in reverse order
 			for i := len(exitSeq) - 1; i >= 0; i-- {
 				if st, ok := m.def.States[exitSeq[i]]; ok && st.OnEntry != nil {
-					_ = st.OnEntry(Event{}, m.ctx)
+					_ = st.OnEntry(Event{}, any(m.ctx))
 				}
 			}
 			m.notify(from, from, e, ErrActionFailed)
@@ -279,19 +279,19 @@ func (m *Machine) handleEvent(e Event) error {
 	// Entry
 	for _, sid := range entrySeq {
 		if st, ok := m.def.States[sid]; ok && st.OnEntry != nil {
-			if err := st.OnEntry(e, m.ctx); err != nil {
+			if err := st.OnEntry(e, any(m.ctx)); err != nil {
 				// Rollback: exit entered and re-enter exited
 				for i := len(entrySeq) - 1; i >= 0; i-- {
 					if entrySeq[i] == sid {
 						break
 					}
 					if st2, ok2 := m.def.States[entrySeq[i]]; ok2 && st2.OnExit != nil {
-						_ = st2.OnExit(e, m.ctx)
+						_ = st2.OnExit(e, any(m.ctx))
 					}
 				}
 				for i := len(exitSeq) - 1; i >= 0; i-- {
 					if st2, ok2 := m.def.States[exitSeq[i]]; ok2 && st2.OnEntry != nil {
-						_ = st2.OnEntry(Event{}, m.ctx)
+						_ = st2.OnEntry(Event{}, any(m.ctx))
 					}
 				}
 				m.notify(from, from, e, ErrHookFailed)
@@ -317,7 +317,7 @@ func (m *Machine) handleEvent(e Event) error {
 
 // computeTransitionSequences returns exit sequence (leaf->up excluding LCA)
 // and entry sequence (LCA->down including drilling to leaf)
-func (m *Machine) computeTransitionSequences(from StateID, to StateID) ([]StateID, []StateID) {
+func (m *Machine[C]) computeTransitionSequences(from StateID, to StateID) ([]StateID, []StateID) {
 	fromPath := m.pathTo(from)
 	toPath := m.pathTo(to)
 	// find LCA index
@@ -353,7 +353,7 @@ func (m *Machine) computeTransitionSequences(from StateID, to StateID) ([]StateI
 }
 
 // pathTo returns path from root to s (inclusive)
-func (m *Machine) pathTo(s StateID) []StateID {
+func (m *Machine[C]) pathTo(s StateID) []StateID {
 	// climb to root
 	var rev []StateID
 	cur := s

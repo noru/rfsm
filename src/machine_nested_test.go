@@ -35,7 +35,7 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 8)
+	m := NewMachine[any](def, nil, 8)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}

@@ -13,7 +13,7 @@ type Snapshot struct {
 }
 
 // Snapshot returns an in-memory snapshot of the current machine runtime state.
-func (m *Machine) Snapshot() *Snapshot {
+func (m *Machine[C]) Snapshot() *Snapshot {
 	m.statusMu.RLock()
 	defer m.statusMu.RUnlock()
 	visited := make([]StateID, 0, len(m.visited))
@@ -30,7 +30,7 @@ func (m *Machine) Snapshot() *Snapshot {
 }
 
 // SnapshotJSON serializes Snapshot to JSON.
-func (m *Machine) SnapshotJSON() ([]byte, error) {
+func (m *Machine[C]) SnapshotJSON() ([]byte, error) {
 	snap := m.Snapshot()
 	return json.Marshal(snap)
 }
@@ -38,7 +38,7 @@ func (m *Machine) SnapshotJSON() ([]byte, error) {
 // RestoreSnapshot restores machine runtime from snapshot and starts the event loop.
 // It does not call entry/exit hooks during restoration.
 // buf controls the capacity of the internal events queue; if <=0, defaults to 64.
-func (m *Machine) RestoreSnapshot(snap *Snapshot, buf int) error {
+func (m *Machine[C]) RestoreSnapshot(snap *Snapshot, buf int) error {
 	if snap == nil {
 		return fmt.Errorf("nil snapshot")
 	}
@@ -87,7 +87,7 @@ func (m *Machine) RestoreSnapshot(snap *Snapshot, buf int) error {
 }
 
 // RestoreSnapshotJSON restores from JSON snapshot
-func (m *Machine) RestoreSnapshotJSON(data []byte, buf int) error {
+func (m *Machine[C]) RestoreSnapshotJSON(data []byte, buf int) error {
 	var snap Snapshot
 	if err := json.Unmarshal(data, &snap); err != nil {
 		return err

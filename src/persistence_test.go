@@ -8,8 +8,8 @@ import (
 func TestPersistence_SnapshotAndRestore(t *testing.T) {
 	var entryA, entryB int32
 	def, err := NewDef("p").
-		State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithInitial()).
-		State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
+		State("A", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithInitial()).
+		State("B", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
 		Current("A").
 		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
 		Build()
@@ -18,7 +18,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 	}
 
 	// run first machine and transition to B
-	m1 := NewMachine(def, nil, 4)
+	m1 := NewMachine[any](def, nil, 4)
 	if err := m1.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 	}
 
 	// restore into a new machine without triggering entry hooks again
-	m2 := NewMachine(def, nil, 4)
+	m2 := NewMachine[any](def, nil, 4)
 	if err := m2.RestoreSnapshotJSON(snapData, 4); err != nil {
 		t.Fatal(err)
 	}

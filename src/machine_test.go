@@ -10,14 +10,14 @@ import (
 func TestMachine_StartStop_Hooks(t *testing.T) {
 	var entry, exit int32
 	def, err := NewDef("hooks").
-		State("S", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entry, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exit, 1); return nil }), WithInitial(), WithFinal()).
+		State("S", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entry, 1); return nil }), WithExit[any](func(e Event, ctx any) error { atomic.AddInt32(&exit, 1); return nil }), WithInitial(), WithFinal()).
 		Current("S").
 		Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 4)
+	m := NewMachine[any](def, nil, 4)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestMachine_Dispatch_BeforeStart_AfterStop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := NewMachine(def, nil, 1)
+	m := NewMachine[any](def, nil, 1)
 
 	if err := m.Dispatch(Event{Name: "x"}); !errors.Is(err, ErrMachineNotStarted) {
 		t.Fatalf("before start want ErrMachineNotStarted got %v", err)
@@ -68,7 +68,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 	def, err := NewDef("sync").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithAction(func(e Event, ctx any) error {
+		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithAction[any](func(e Event, ctx any) error {
 			time.Sleep(40 * time.Millisecond)
 			atomic.StoreInt64(&stamp, time.Now().UnixNano())
 			return nil
@@ -78,7 +78,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 2)
+	m := NewMachine[any](def, nil, 2)
 	_ = m.Start()
 	defer m.Stop()
 
@@ -108,7 +108,7 @@ func TestMachine_IsActive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 2)
+	m := NewMachine[any](def, nil, 2)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := NewMachine(def, nil, 2)
+	m := NewMachine[any](def, nil, 2)
 	sub := &errSub{}
 	m.Subscribe(sub)
 	_ = m.Start()

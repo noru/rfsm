@@ -19,7 +19,7 @@ func TestBasicTransition(t *testing.T) {
 		t.Fatalf("build err: %v", err)
 	}
 
-	m := NewMachine(def, nil, 8)
+	m := NewMachine[any](def, nil, 8)
 	if err := m.Start(); err != nil {
 		t.Fatalf("start err: %v", err)
 	}
@@ -49,13 +49,13 @@ func TestGuardAndNoTransition(t *testing.T) {
 	def, err := NewDef("g").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithGuard(func(e Event, ctx any) bool { return allow })).
+		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithGuard[any](func(e Event, ctx any) bool { return allow })).
 		Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 8)
+	m := NewMachine[any](def, nil, 8)
 	_ = m.Start()
 	defer m.Stop()
 
@@ -79,10 +79,10 @@ func TestActionRollback(t *testing.T) {
 	var entryA, exitA, entryB int32
 	fail := true
 	def, err := NewDef("r").
-		State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil }), WithInitial()).
-		State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
+		State("A", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit[any](func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil }), WithInitial()).
+		State("B", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithAction(func(e Event, ctx any) error {
+		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithAction[any](func(e Event, ctx any) error {
 			if fail {
 				return errors.New("boom")
 			}
@@ -93,7 +93,7 @@ func TestActionRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 8)
+	m := NewMachine[any](def, nil, 8)
 	_ = m.Start()
 	defer m.Stop()
 
@@ -152,7 +152,7 @@ func TestAsyncAndSubscriber(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine(def, nil, 1)
+	m := NewMachine[any](def, nil, 1)
 	sub := &recSub{}
 	m.Subscribe(sub)
 	_ = m.Start()

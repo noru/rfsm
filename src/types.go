@@ -8,10 +8,15 @@ type Event struct {
 	Args []any
 }
 
-// Hooks, actions, and guards
-type GuardFunc func(e Event, ctx any) bool
-type ActionFunc func(e Event, ctx any) error
-type HookFunc func(e Event, ctx any) error
+// Hooks, actions, and guards (generic for type-safe context)
+type GuardFunc[C any] func(e Event, ctx C) bool
+type ActionFunc[C any] func(e Event, ctx C) error
+type HookFunc[C any] func(e Event, ctx C) error
+
+// Internal storage uses any for compatibility across different context types
+type guardFuncAny func(e Event, ctx any) bool
+type actionFuncAny func(e Event, ctx any) error
+type hookFuncAny func(e Event, ctx any) error
 
 // State ID
 type StateID string
@@ -20,8 +25,8 @@ type StateID string
 type StateDef struct {
 	ID          StateID
 	Description string
-	OnEntry     HookFunc
-	OnExit      HookFunc
+	OnEntry     hookFuncAny
+	OnExit      hookFuncAny
 	// Hierarchy
 	Parent       StateID   // empty means no parent (top-level)
 	Children     []StateID // non-empty => composite state
@@ -43,8 +48,8 @@ type TransitionKey struct {
 type TransitionDef struct {
 	Key    TransitionKey
 	Name   string
-	Guard  GuardFunc
-	Action ActionFunc
+	Guard  guardFuncAny
+	Action actionFuncAny
 }
 
 // Definition is the built, read-only state machine definition

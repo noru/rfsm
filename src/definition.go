@@ -33,17 +33,61 @@ func NewDef(name string) DefinitionBuilder {
 }
 
 // State options
-func WithEntry(h HookFunc) StateOption        { return func(s *StateDef) { s.OnEntry = h } }
-func WithExit(h HookFunc) StateOption         { return func(s *StateDef) { s.OnExit = h } }
+func WithEntry[C any](h HookFunc[C]) StateOption {
+	return func(s *StateDef) {
+		s.OnEntry = func(e Event, ctx any) error {
+			var c C
+			if ctx != nil {
+				c = ctx.(C)
+			}
+			return h(e, c)
+		}
+	}
+}
+
+func WithExit[C any](h HookFunc[C]) StateOption {
+	return func(s *StateDef) {
+		s.OnExit = func(e Event, ctx any) error {
+			var c C
+			if ctx != nil {
+				c = ctx.(C)
+			}
+			return h(e, c)
+		}
+	}
+}
+
 func WithDescription(desc string) StateOption { return func(s *StateDef) { s.Description = desc } }
 func WithSubDef(sub *Definition) StateOption  { return func(s *StateDef) { s.SubDef = sub } }
 func WithFinal() StateOption                  { return func(s *StateDef) { s.Final = true } }
 func WithInitial() StateOption                { return func(s *StateDef) { s.Initial = true } }
 
 // Transition options
-func WithName(name string) TransitionOption     { return func(t *TransitionDef) { t.Name = name } }
-func WithGuard(fn GuardFunc) TransitionOption   { return func(t *TransitionDef) { t.Guard = fn } }
-func WithAction(fn ActionFunc) TransitionOption { return func(t *TransitionDef) { t.Action = fn } }
+func WithName(name string) TransitionOption { return func(t *TransitionDef) { t.Name = name } }
+
+func WithGuard[C any](fn GuardFunc[C]) TransitionOption {
+	return func(t *TransitionDef) {
+		t.Guard = func(e Event, ctx any) bool {
+			var c C
+			if ctx != nil {
+				c = ctx.(C)
+			}
+			return fn(e, c)
+		}
+	}
+}
+
+func WithAction[C any](fn ActionFunc[C]) TransitionOption {
+	return func(t *TransitionDef) {
+		t.Action = func(e Event, ctx any) error {
+			var c C
+			if ctx != nil {
+				c = ctx.(C)
+			}
+			return fn(e, c)
+		}
+	}
+}
 
 func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 	var def StateDef

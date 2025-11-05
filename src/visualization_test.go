@@ -49,7 +49,7 @@ func TestToMermaid_WithMarkers_And_DOT(t *testing.T) {
 	def, err := NewDef("root").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithGuard(func(e Event, ctx any) bool { return true }), WithAction(func(e Event, ctx any) error { return nil })).
+		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithGuard[any](func(e Event, ctx any) bool { return true }), WithAction[any](func(e Event, ctx any) error { return nil })).
 		Build()
 	if err != nil {
 		t.Fatal(err)

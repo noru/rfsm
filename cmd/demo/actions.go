@@ -125,86 +125,86 @@ func defineActionsDemo(ctx *demoContext) *rfsm.Definition {
 	return def
 }
 
-func entryHook(stateName string, ctx *demoContext) rfsm.HookFunc {
-	return func(e rfsm.Event, _ any) error {
-		ctx.log(fmt.Sprintf("HOOK [Entry] %s: Entering state", stateName))
+func entryHook(stateName string, ctx *demoContext) rfsm.HookFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) error {
+		c.log(fmt.Sprintf("HOOK [Entry] %s: Entering state", stateName))
 		return nil
 	}
 }
 
-func exitHook(stateName string, ctx *demoContext) rfsm.HookFunc {
-	return func(e rfsm.Event, _ any) error {
-		ctx.log(fmt.Sprintf("HOOK [Exit] %s: Exiting state", stateName))
+func exitHook(stateName string, ctx *demoContext) rfsm.HookFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) error {
+		c.log(fmt.Sprintf("HOOK [Exit] %s: Exiting state", stateName))
 		return nil
 	}
 }
 
-func processAction(ctx *demoContext) rfsm.ActionFunc {
-	return func(e rfsm.Event, _ any) error {
-		ctx.attempts++
-		ctx.processed = true
-		ctx.log(fmt.Sprintf("ACTION: Processing transaction (attempt %d)", ctx.attempts))
+func processAction(ctx *demoContext) rfsm.ActionFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) error {
+		c.attempts++
+		c.processed = true
+		c.log(fmt.Sprintf("ACTION: Processing transaction (attempt %d)", c.attempts))
 		return nil
 	}
 }
 
-func validateGuard(ctx *demoContext) rfsm.GuardFunc {
-	return func(e rfsm.Event, _ any) bool {
+func validateGuard(ctx *demoContext) rfsm.GuardFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) bool {
 		if len(e.Args) == 0 {
-			ctx.log("GUARD: Validation failed - no amount provided")
+			c.log("GUARD: Validation failed - no amount provided")
 			return false
 		}
 		amount, ok := e.Args[0].(int)
 		if !ok {
-			ctx.log("GUARD: Validation failed - invalid amount type")
+			c.log("GUARD: Validation failed - invalid amount type")
 			return false
 		}
-		result := ctx.balance >= amount
+		result := c.balance >= amount
 		if result {
-			ctx.log(fmt.Sprintf("GUARD: Balance check passed (balance=%d >= amount=%d)", ctx.balance, amount))
+			c.log(fmt.Sprintf("GUARD: Balance check passed (balance=%d >= amount=%d)", c.balance, amount))
 		} else {
-			ctx.log(fmt.Sprintf("GUARD: Balance check failed (balance=%d < amount=%d)", ctx.balance, amount))
+			c.log(fmt.Sprintf("GUARD: Balance check failed (balance=%d < amount=%d)", c.balance, amount))
 		}
 		return result
 	}
 }
 
-func validateAction(ctx *demoContext) rfsm.ActionFunc {
-	return func(e rfsm.Event, _ any) error {
-		ctx.validated = true
+func validateAction(ctx *demoContext) rfsm.ActionFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) error {
+		c.validated = true
 		amount := 0
 		if len(e.Args) > 0 {
 			if amt, ok := e.Args[0].(int); ok {
 				amount = amt
 			}
 		}
-		ctx.log(fmt.Sprintf("ACTION: Validated transaction for amount %d", amount))
+		c.log(fmt.Sprintf("ACTION: Validated transaction for amount %d", amount))
 		return nil
 	}
 }
 
-func successGuard(ctx *demoContext) rfsm.GuardFunc {
-	return func(e rfsm.Event, _ any) bool {
-		result := ctx.validated && ctx.processed
+func successGuard(ctx *demoContext) rfsm.GuardFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) bool {
+		result := c.validated && c.processed
 		if result {
-			ctx.log("GUARD: Success check passed (validated and processed)")
+			c.log("GUARD: Success check passed (validated and processed)")
 		} else {
-			ctx.log(fmt.Sprintf("GUARD: Success check failed (validated=%v, processed=%v)", ctx.validated, ctx.processed))
+			c.log(fmt.Sprintf("GUARD: Success check failed (validated=%v, processed=%v)", c.validated, c.processed))
 		}
 		return result
 	}
 }
 
-func completeAction(ctx *demoContext) rfsm.ActionFunc {
-	return func(e rfsm.Event, _ any) error {
-		ctx.log("ACTION: Transaction completed successfully")
+func completeAction(ctx *demoContext) rfsm.ActionFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) error {
+		c.log("ACTION: Transaction completed successfully")
 		return nil
 	}
 }
 
-func failAction(ctx *demoContext) rfsm.ActionFunc {
-	return func(e rfsm.Event, _ any) error {
-		ctx.log("ACTION: Transaction failed")
+func failAction(ctx *demoContext) rfsm.ActionFunc[*demoContext] {
+	return func(e rfsm.Event, c *demoContext) error {
+		c.log("ACTION: Transaction failed")
 		return nil
 	}
 }
