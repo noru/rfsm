@@ -233,14 +233,10 @@ func (b *builder) Build() (*Definition, error) {
 			}
 		}
 	}
-	transitions := make([]TransitionDef, 0, len(b.transitions))
-	for _, t := range b.transitions {
-		transitions = append(transitions, t)
-	}
 	d := &Definition{
 		Name:        b.name,
 		States:      b.states,
-		Transitions: transitions,
+		Transitions: b.transitions,
 		Current:     *b.current,
 	}
 	return d, nil

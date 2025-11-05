@@ -104,8 +104,7 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 	}
 
 	// render transitions
-	for i := range d.Transitions {
-		t := d.Transitions[i]
+	for _, t := range d.Transitions {
 		buf.WriteString(string(t.Key.From))
 		buf.WriteString(" --> ")
 		buf.WriteString(string(t.To))
@@ -251,8 +250,7 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	}
 
 	// transitions
-	for i := range d.Transitions {
-		t := d.Transitions[i]
+	for _, t := range d.Transitions {
 		buf.WriteString("  \"")
 		buf.WriteString(string(t.Key.From))
 		buf.WriteString("\" -> \"")

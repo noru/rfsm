@@ -21,8 +21,7 @@ func (d *Definition) ComputeTopology() (*GraphTopology, error) {
 	for id := range d.States {
 		indeg[id] = 0
 	}
-	for i := range d.Transitions {
-		t := d.Transitions[i]
+	for _, t := range d.Transitions {
 		adj[t.Key.From] = append(adj[t.Key.From], t.To)
 		indeg[t.To]++
 	}

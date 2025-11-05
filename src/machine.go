@@ -234,14 +234,12 @@ func (m *Machine[C]) handleEvent(e Event) error {
 	var source StateID
 	for i := len(path) - 1; i >= 0 && matched == nil; i-- {
 		s := path[i]
-		for j := range m.def.Transitions {
-			t := &m.def.Transitions[j]
-			if t.Key.From == s && t.Key.Event == e.Name {
-				if t.Guard == nil || t.Guard(e, any(m.ctx)) {
-					matched = t
-					source = s
-					break
-				}
+		tk := TransitionKey{From: s, Event: e.Name}
+		if t, ok := m.def.Transitions[tk]; ok {
+			if t.Guard == nil || t.Guard(e, any(m.ctx)) {
+				matched = &t
+				source = s
+				break
 			}
 		}
 	}

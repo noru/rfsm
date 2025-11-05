@@ -56,7 +56,7 @@ type TransitionDef struct {
 type Definition struct {
 	Name        string
 	States      map[StateID]StateDef
-	Transitions []TransitionDef
+	Transitions map[TransitionKey]TransitionDef
 	Current     StateID
 	// cached topology (computed on demand)
 	topology *GraphTopology
