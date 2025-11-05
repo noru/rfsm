@@ -34,6 +34,7 @@ func WithEntry(h HookFunc) StateOption        { return func(s *StateDef) { s.OnE
 func WithExit(h HookFunc) StateOption         { return func(s *StateDef) { s.OnExit = h } }
 func WithDescription(desc string) StateOption { return func(s *StateDef) { s.Description = desc } }
 func WithSubDef(sub *Definition) StateOption  { return func(s *StateDef) { s.SubDef = sub } }
+func WithFinal() StateOption                  { return func(s *StateDef) { s.Final = true } }
 
 // Transition options (With* for naming consistency)
 func WithFrom(id StateID) TransitionOption      { return func(t *TransitionDef) { t.From = id } }
@@ -180,5 +181,3 @@ func (d *Definition) IsAfter(a, b StateID) (bool, error) {
 	}
 	return topo.IsAfter(a, b), nil
 }
-
-

@@ -71,6 +71,13 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 				buf.WriteString("state ")
 				buf.WriteString(string(c))
 				buf.WriteByte('\n')
+				// final leaf inside composite: draw edge to local terminal
+				if d.States[c].Final {
+					buf.WriteString(indent)
+					buf.WriteByte('\t')
+					buf.WriteString(string(c))
+					buf.WriteString(" --> [*]\n")
+				}
 			}
 		}
 		buf.WriteString(indent)
@@ -86,6 +93,10 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 			buf.WriteString("state ")
 			buf.WriteString(string(r))
 			buf.WriteByte('\n')
+			if d.States[r].Final {
+				buf.WriteString(string(r))
+				buf.WriteString(" --> [*]\n")
+			}
 		}
 	}
 
@@ -130,7 +141,7 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	var buf bytes.Buffer
 	buf.WriteString("digraph fsm {\n")
 	buf.WriteString("  rankdir=LR;\n")
-	buf.WriteString("  node [shape=rectangle];\n")
+    buf.WriteString("  node [shape=rectangle];\n")
 	// point node for root initial
 	if d.Initial != "" {
 		buf.WriteString("  __init_root [shape=point,label=\"\"];\n")
@@ -182,13 +193,15 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 			buf.WriteString("\";\n")
 		}
 		for _, c := range childrenOf[id] {
-			if len(d.States[c].Children) > 0 {
+            if len(d.States[c].Children) > 0 {
 				renderCluster(c, indent+"  ")
 			} else {
-				buf.WriteString(indent)
-				buf.WriteString("  \"")
-				buf.WriteString(string(c))
-				buf.WriteString("\";\n")
+                buf.WriteString(indent)
+                buf.WriteString("  \"")
+                buf.WriteString(string(c))
+                buf.WriteString("\"")
+                if d.States[c].Final { buf.WriteString(" [shape=doublecircle]") }
+                buf.WriteString(";\n")
 			}
 		}
 		buf.WriteString(indent)
@@ -199,10 +212,12 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	for _, r := range roots {
 		if len(childrenOf[r]) > 0 {
 			renderCluster(r, "  ")
-		} else {
-			buf.WriteString("  \"")
-			buf.WriteString(string(r))
-			buf.WriteString("\";\n")
+        } else {
+            buf.WriteString("  \"")
+            buf.WriteString(string(r))
+            buf.WriteString("\"")
+            if d.States[r].Final { buf.WriteString(" [shape=doublecircle]") }
+            buf.WriteString(";\n")
 		}
 	}
 
