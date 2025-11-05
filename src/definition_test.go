@@ -170,3 +170,88 @@ func TestAsyncAndSubscriber(t *testing.T) {
 		t.Fatalf("want subscriber called")
 	}
 }
+
+func TestBuildValidation_CurrentNotSet(t *testing.T) {
+	_, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Build()
+	if err == nil {
+		t.Fatal("expected error for missing current state")
+	}
+	if err.Error() != "current state not set" {
+		t.Fatalf("expected 'current state not set', got %q", err.Error())
+	}
+}
+
+func TestBuildValidation_CurrentNotDefined(t *testing.T) {
+	_, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("C").
+		Build()
+	if err == nil {
+		t.Fatal("expected error for undefined current state")
+	}
+	if err.Error() != "current state \"C\" not defined" {
+		t.Fatalf("expected 'current state \"C\" not defined', got %q", err.Error())
+	}
+}
+
+func TestBuildValidation_NoInitialState(t *testing.T) {
+	_, err := NewDef("test").
+		State("A").
+		State("B", WithFinal()).
+		Current("A").
+		Build()
+	if err == nil {
+		t.Fatal("expected error for missing initial state")
+	}
+	if err.Error() != "at least one state must be marked with WithInitial()" {
+		t.Fatalf("expected 'at least one state must be marked with WithInitial()', got %q", err.Error())
+	}
+}
+
+func TestBuildValidation_NoFinalState(t *testing.T) {
+	_, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B").
+		Current("A").
+		Build()
+	if err == nil {
+		t.Fatal("expected error for missing final state")
+	}
+	if err.Error() != "at least one state must be marked with WithFinal()" {
+		t.Fatalf("expected 'at least one state must be marked with WithFinal()', got %q", err.Error())
+	}
+}
+
+func TestBuildValidation_TransitionFromUndefined(t *testing.T) {
+	_, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "C", "B").
+		Build()
+	if err == nil {
+		t.Fatal("expected error for transition from undefined state")
+	}
+	if err.Error() != "transition from undefined state \"C\"" {
+		t.Fatalf("expected 'transition from undefined state \"C\"', got %q", err.Error())
+	}
+}
+
+func TestBuildValidation_TransitionToUndefined(t *testing.T) {
+	_, err := NewDef("test").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "C").
+		Build()
+	if err == nil {
+		t.Fatal("expected error for transition to undefined state")
+	}
+	if err.Error() != "transition to undefined state \"C\"" {
+		t.Fatalf("expected 'transition to undefined state \"C\"', got %q", err.Error())
+	}
+}
