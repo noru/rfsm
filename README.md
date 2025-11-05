@@ -11,13 +11,13 @@ Hierarchical/DAG-aware finite state machine for Go.
 ## Install
 
 ```bash
-go get github.com/ethan/rfsm/src
+go get github.com/ethan/rfsm
 ```
 
 ## Quickstart
 
 ```go
-import rfsm "github.com/ethan/rfsm/src"
+import rfsm "github.com/ethan/rfsm"
 
 // Turnstile
 
@@ -99,7 +99,5 @@ stateDiagram-v2
 Locked --> Unlocked : coin
 Unlocked --> Locked : push
 ```
-
-
 
 License: MIT
