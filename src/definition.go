@@ -47,16 +47,24 @@ func WithGuard(fn GuardFunc) TransitionOption   { return func(t *TransitionDef) 
 func WithAction(fn ActionFunc) TransitionOption { return func(t *TransitionDef) { t.Action = fn } }
 
 func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
-	def := StateDef{ID: id}
+	var def StateDef
+	if existing, ok := b.states[id]; ok {
+		def = existing
+	} else {
+		def = StateDef{ID: id}
+	}
+
 	for _, opt := range opts {
 		opt(&def)
 	}
+
 	if def.Initial {
 		b.hasInitial = true
 	}
 	if def.Final {
 		b.hasFinal = true
 	}
+
 	// If SubDef is provided, merge sub-definition into composite state
 	if def.SubDef != nil {
 		sub := def.SubDef
@@ -81,6 +89,7 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 		// clear build-time field
 		def.SubDef = nil
 	}
+
 	b.states[id] = def
 	return b
 }
