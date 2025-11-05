@@ -105,20 +105,20 @@ func defineActionsDemo(ctx *demoContext) *rfsm.Definition {
 		State("SUCCESS", rfsm.WithFinal(), rfsm.WithEntry(entryHook("SUCCESS", ctx))).
 		State("FAILED", rfsm.WithFinal(), rfsm.WithEntry(entryHook("FAILED", ctx))).
 		Current("INIT").
-		On(rfsm.TransitionKey{From: "INIT", To: "PROCESSING"}, rfsm.WithName("start"),
+		On("start", "INIT", "PROCESSING",
 			rfsm.WithAction(processAction(ctx))).
-		On(rfsm.TransitionKey{From: "PROCESSING", To: "VALIDATING"}, rfsm.WithName("validate"),
+		On("validate", "PROCESSING", "VALIDATING",
 			rfsm.WithGuard(validateGuard(ctx)),
 			rfsm.WithAction(validateAction(ctx))).
-		On(rfsm.TransitionKey{From: "VALIDATING", To: "VALIDATING"}, rfsm.WithName("validate"),
+		On("validate", "VALIDATING", "VALIDATING",
 			rfsm.WithGuard(validateGuard(ctx)),
 			rfsm.WithAction(validateAction(ctx))).
-		On(rfsm.TransitionKey{From: "VALIDATING", To: "PROCESSING"}, rfsm.WithName("process"),
+		On("process", "VALIDATING", "PROCESSING",
 			rfsm.WithAction(processAction(ctx))).
-		On(rfsm.TransitionKey{From: "PROCESSING", To: "SUCCESS"}, rfsm.WithName("complete"),
+		On("complete", "PROCESSING", "SUCCESS",
 			rfsm.WithGuard(successGuard(ctx)),
 			rfsm.WithAction(completeAction(ctx))).
-		On(rfsm.TransitionKey{From: "PROCESSING", To: "FAILED"}, rfsm.WithName("fail"),
+		On("fail", "PROCESSING", "FAILED",
 			rfsm.WithAction(failAction(ctx))).
 		Build()
 

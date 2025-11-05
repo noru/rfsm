@@ -23,8 +23,8 @@ func (d *Definition) ComputeTopology() (*GraphTopology, error) {
 	}
 	for i := range d.Transitions {
 		t := d.Transitions[i]
-		adj[t.Key.From] = append(adj[t.Key.From], t.Key.To)
-		indeg[t.Key.To]++
+		adj[t.Key.From] = append(adj[t.Key.From], t.To)
+		indeg[t.To]++
 	}
 	// Kahn
 	q := make([]StateID, 0, len(indeg))

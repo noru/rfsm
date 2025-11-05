@@ -12,7 +12,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 		State("A", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithInitial()).
 		State("B", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
+		On("go", "A", "B").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +70,7 @@ func TestPersistence_ContextSerialization(t *testing.T) {
 		State("A", WithInitial()).
 		State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
+		On("go", "A", "B").
 		Build()
 	if err != nil {
 		t.Fatal(err)

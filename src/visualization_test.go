@@ -16,8 +16,8 @@ func TestToMermaid_NestedAndTransitions(t *testing.T) {
 		State("A", WithSubDef(sub), WithInitial()).
 		State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A1", To: "B"}, WithName("go")).
-		On(TransitionKey{From: "A", To: "B"}, WithName("back")).
+		On("go", "A1", "B").
+		On("back", "A", "B").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestToMermaid_WithMarkers_And_DOT(t *testing.T) {
 	def, err := NewDef("root").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithGuard[any](func(e Event, ctx any) bool { return true }), WithAction[any](func(e Event, ctx any) error { return nil })).
+		On("go", "A", "B", WithGuard[any](func(e Event, ctx any) bool { return true }), WithAction[any](func(e Event, ctx any) error { return nil })).
 		Build()
 	if err != nil {
 		t.Fatal(err)

@@ -236,7 +236,7 @@ func (m *Machine[C]) handleEvent(e Event) error {
 		s := path[i]
 		for j := range m.def.Transitions {
 			t := &m.def.Transitions[j]
-			if t.Key.From == s && t.Name == e.Name {
+			if t.Key.From == s && t.Key.Event == e.Name {
 				if t.Guard == nil || t.Guard(e, any(m.ctx)) {
 					matched = t
 					source = s
@@ -251,8 +251,7 @@ func (m *Machine[C]) handleEvent(e Event) error {
 	}
 
 	// Compute sequences via LCA between source and target
-	to := matched.Key.To
-	exitSeq, entrySeq := m.computeTransitionSequences(source, to)
+	exitSeq, entrySeq := m.computeTransitionSequences(source, matched.To)
 	// Exit
 	for _, sid := range exitSeq {
 		if st, ok := m.def.States[sid]; ok && st.OnExit != nil {

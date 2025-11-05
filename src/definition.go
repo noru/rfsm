@@ -5,7 +5,7 @@ import "fmt"
 // Builder interfaces
 type DefinitionBuilder interface {
 	State(id StateID, opts ...StateOption) DefinitionBuilder
-	On(tk TransitionKey, opts ...TransitionOption) DefinitionBuilder
+	On(event string, from, to StateID, opts ...TransitionOption) DefinitionBuilder
 	Current(id StateID) DefinitionBuilder
 	InitialChild(parent StateID, child StateID) DefinitionBuilder
 	Build() (*Definition, error)
@@ -63,8 +63,6 @@ func WithFinal() StateOption                  { return func(s *StateDef) { s.Fin
 func WithInitial() StateOption                { return func(s *StateDef) { s.Initial = true } }
 
 // Transition options
-func WithName(name string) TransitionOption { return func(t *TransitionDef) { t.Name = name } }
-
 func WithGuard[C any](fn GuardFunc[C]) TransitionOption {
 	return func(t *TransitionDef) {
 		t.Guard = func(e Event, ctx any) bool {
@@ -76,7 +74,6 @@ func WithGuard[C any](fn GuardFunc[C]) TransitionOption {
 		}
 	}
 }
-
 func WithAction[C any](fn ActionFunc[C]) TransitionOption {
 	return func(t *TransitionDef) {
 		t.Action = func(e Event, ctx any) error {
@@ -142,10 +139,16 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 	return b
 }
 
-func (b *builder) On(tk TransitionKey, opts ...TransitionOption) DefinitionBuilder {
+func (b *builder) On(event string, from, to StateID, opts ...TransitionOption) DefinitionBuilder {
+	tk := TransitionKey{From: from, Event: event}
 	t, ok := b.transitions[tk]
 	if !ok {
-		t = TransitionDef{Key: tk}
+		t = TransitionDef{Key: tk, To: to}
+	} else {
+		// fail early
+		if t.To != to {
+			panic(fmt.Sprintf("transition with event %q from %q already exists with different target state: %q != %q", event, from, t.To, to))
+		}
 	}
 	for _, opt := range opts {
 		opt(&t)
@@ -180,20 +183,19 @@ func (b *builder) Build() (*Definition, error) {
 	if !b.hasFinal {
 		return nil, fmt.Errorf("at least one state must be marked with WithFinal()")
 	}
-	// Validate: at least one Initial state
 	// Validate: all transitions reference defined states
 	for k, t := range b.transitions {
 		if k != t.Key {
-			return nil, fmt.Errorf("transition key mismatch for transition %q from %q to %q", t.Name, k.From, k.To)
+			return nil, fmt.Errorf("transition key mismatch for transition %q from %q", t.Key.Event, k.From)
 		}
 		if _, ok := b.states[k.From]; !ok {
 			return nil, fmt.Errorf("transition from undefined state %q", k.From)
 		}
-		if _, ok := b.states[k.To]; !ok {
-			return nil, fmt.Errorf("transition to undefined state %q", k.To)
+		if _, ok := b.states[t.To]; !ok {
+			return nil, fmt.Errorf("transition to undefined state %q", t.To)
 		}
-		if t.Name == "" {
-			return nil, fmt.Errorf("transition name is empty")
+		if t.Key.Event == "" {
+			return nil, fmt.Errorf("transition event is empty")
 		}
 	}
 	// Validate: hierarchy

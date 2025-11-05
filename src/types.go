@@ -40,14 +40,14 @@ type StateDef struct {
 }
 
 type TransitionKey struct {
-	From StateID
-	To   StateID
+	From  StateID
+	Event string
 }
 
 // Transition definition (immutable)
 type TransitionDef struct {
 	Key    TransitionKey
-	Name   string
+	To     StateID
 	Guard  guardFuncAny
 	Action actionFuncAny
 }

@@ -68,7 +68,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 	def, err := NewDef("sync").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithAction[any](func(e Event, ctx any) error {
+		On("go", "A", "B", WithAction[any](func(e Event, ctx any) error {
 			time.Sleep(40 * time.Millisecond)
 			atomic.StoreInt64(&stamp, time.Now().UnixNano())
 			return nil
@@ -102,7 +102,7 @@ func TestMachine_IsActive(t *testing.T) {
 	def, err := NewDef("visit").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
+		On("go", "A", "B").
 		Build()
 	if err != nil {
 		t.Fatal(err)

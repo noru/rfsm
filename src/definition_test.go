@@ -12,8 +12,8 @@ func TestBasicTransition(t *testing.T) {
 		State("Locked", WithInitial()).
 		State("Unlocked", WithFinal()).
 		Current("Locked").
-		On(TransitionKey{From: "Locked", To: "Unlocked"}, WithName("coin")).
-		On(TransitionKey{From: "Unlocked", To: "Locked"}, WithName("push")).
+		On("coin", "Locked", "Unlocked").
+		On("push", "Unlocked", "Locked").
 		Build()
 	if err != nil {
 		t.Fatalf("build err: %v", err)
@@ -49,7 +49,7 @@ func TestGuardAndNoTransition(t *testing.T) {
 	def, err := NewDef("g").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithGuard[any](func(e Event, ctx any) bool { return allow })).
+		On("go", "A", "B", WithGuard[any](func(e Event, ctx any) bool { return allow })).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func TestActionRollback(t *testing.T) {
 		State("A", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit[any](func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil }), WithInitial()).
 		State("B", WithEntry[any](func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go"), WithAction[any](func(e Event, ctx any) error {
+		On("go", "A", "B", WithAction[any](func(e Event, ctx any) error {
 			if fail {
 				return errors.New("boom")
 			}
@@ -146,7 +146,7 @@ func TestAsyncAndSubscriber(t *testing.T) {
 	def, err := NewDef("t").
 		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
-		On(TransitionKey{From: "A", To: "B"}, WithName("go")).
+		On("go", "A", "B").
 		Build()
 	if err != nil {
 		t.Fatal(err)
