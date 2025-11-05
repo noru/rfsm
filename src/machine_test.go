@@ -10,7 +10,7 @@ import (
 func TestMachine_StartStop_Hooks(t *testing.T) {
 	var entry, exit int32
 	def, err := NewDef("hooks").
-		State("S", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entry, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exit, 1); return nil })).
+		State("S", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entry, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exit, 1); return nil }), WithInitial(), WithFinal()).
 		Current("S").
 		Build()
 	if err != nil {
@@ -34,7 +34,7 @@ func TestMachine_StartStop_Hooks(t *testing.T) {
 
 func TestMachine_Dispatch_BeforeStart_AfterStop(t *testing.T) {
 	def, err := NewDef("b").
-		State("A").Current("A").
+		State("A", WithInitial(), WithFinal()).Current("A").
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestMachine_Dispatch_BeforeStart_AfterStop(t *testing.T) {
 func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 	var stamp int64
 	def, err := NewDef("sync").
-		State("A").State("B").
+		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
 		On("go", WithFrom("A"), WithTo("B"), WithAction(func(e Event, ctx any) error {
 			time.Sleep(40 * time.Millisecond)
@@ -100,7 +100,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 
 func TestMachine_IsActive(t *testing.T) {
 	def, err := NewDef("visit").
-		State("A").State("B").
+		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
 		On("go", WithFrom("A"), WithTo("B")).
 		Build()
@@ -138,7 +138,7 @@ func (s *errSub) OnTransition(from StateID, to StateID, e Event, err error) {
 
 func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 	def, err := NewDef("sub").
-		State("A").Current("A").
+		State("A", WithInitial(), WithFinal()).Current("A").
 		Build()
 	if err != nil {
 		t.Fatal(err)

@@ -28,6 +28,8 @@ type StateDef struct {
 	InitialChild StateID   // valid only if Children non-empty
 	// Build-time: optional sub-definition to merge into this composite state
 	SubDef *Definition
+	// Initial indicates this is a entry state (no incoming transitions by convention)
+	Initial bool
 	// Final indicates this is a terminal state (no outgoing transitions by convention)
 	Final bool
 }

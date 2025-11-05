@@ -20,13 +20,6 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 	var buf bytes.Buffer
 	buf.WriteString("stateDiagram-v2\n")
 
-	// root current pointer
-	if d.Current != "" {
-		buf.WriteString("[*] --> ")
-		buf.WriteString(string(d.Current))
-		buf.WriteByte('\n')
-	}
-
 	// build parent -> children map and root list
 	childrenOf := make(map[StateID][]StateID)
 	roots := make([]StateID, 0, len(d.States))
@@ -47,19 +40,10 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 	// recursive render for composite states
 	var renderComposite func(id StateID, indent string)
 	renderComposite = func(id StateID, indent string) {
-		st := d.States[id]
 		buf.WriteString(indent)
 		buf.WriteString("state ")
 		buf.WriteString(string(id))
 		buf.WriteString(" {\n")
-		// initial pointer inside composite
-		if st.InitialChild != "" {
-			buf.WriteString(indent)
-			buf.WriteByte('\t')
-			buf.WriteString("[*] --> ")
-			buf.WriteString(string(st.InitialChild))
-			buf.WriteByte('\n')
-		}
 		// render children
 		for _, c := range childrenOf[id] {
 			if len(d.States[c].Children) > 0 {
@@ -80,6 +64,16 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 				}
 			}
 		}
+		// render initial pointers for all Initial=true children
+		for _, c := range childrenOf[id] {
+			if d.States[c].Initial {
+				buf.WriteString(indent)
+				buf.WriteByte('\t')
+				buf.WriteString("[*] --> ")
+				buf.WriteString(string(c))
+				buf.WriteByte('\n')
+			}
+		}
 		buf.WriteString(indent)
 		buf.WriteString("}\n")
 	}
@@ -97,6 +91,15 @@ func (d *Definition) ToMermaidOpts(opts VisualOptions) string {
 				buf.WriteString(string(r))
 				buf.WriteString(" --> [*]\n")
 			}
+		}
+	}
+
+	// render initial pointers for all Initial=true root states
+	for _, r := range roots {
+		if d.States[r].Initial && d.States[r].Parent == "" {
+			buf.WriteString("[*] --> ")
+			buf.WriteString(string(r))
+			buf.WriteByte('\n')
 		}
 	}
 
@@ -152,13 +155,6 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	buf.WriteString("digraph fsm {\n")
 	buf.WriteString("  rankdir=LR;\n")
 	buf.WriteString("  node [shape=rectangle];\n")
-	// point node for root current
-	if d.Current != "" {
-		buf.WriteString("  __init_root [shape=point,label=\"\"];\n")
-		buf.WriteString("  __init_root -> \"")
-		buf.WriteString(string(d.Current))
-		buf.WriteString("\";\n")
-	}
 
 	// grouping children
 	childrenOf := make(map[StateID][]StateID)
@@ -180,7 +176,6 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 	// recursive clusters
 	var renderCluster func(id StateID, indent string)
 	renderCluster = func(id StateID, indent string) {
-		st := d.States[id]
 		buf.WriteString(indent)
 		buf.WriteString("subgraph cluster_")
 		buf.WriteString(string(id))
@@ -189,19 +184,6 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 		buf.WriteString("  label=\"")
 		buf.WriteString(string(id))
 		buf.WriteString("\";\n")
-		// initial pointer inside cluster
-		if st.InitialChild != "" {
-			buf.WriteString(indent)
-			buf.WriteString("  __init_")
-			buf.WriteString(string(id))
-			buf.WriteString(" [shape=point,label=\"\"];\n")
-			buf.WriteString(indent)
-			buf.WriteString("  __init_")
-			buf.WriteString(string(id))
-			buf.WriteString(" -> \"")
-			buf.WriteString(string(st.InitialChild))
-			buf.WriteString("\";\n")
-		}
 		for _, c := range childrenOf[id] {
 			if len(d.States[c].Children) > 0 {
 				renderCluster(c, indent+"  ")
@@ -214,6 +196,25 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 					buf.WriteString(" [shape=doublecircle]")
 				}
 				buf.WriteString(";\n")
+			}
+		}
+		// render initial pointers for all Initial=true children
+		for _, c := range childrenOf[id] {
+			if d.States[c].Initial {
+				buf.WriteString(indent)
+				buf.WriteString("  __init_")
+				buf.WriteString(string(id))
+				buf.WriteString("_")
+				buf.WriteString(string(c))
+				buf.WriteString(" [shape=point,label=\"\"];\n")
+				buf.WriteString(indent)
+				buf.WriteString("  __init_")
+				buf.WriteString(string(id))
+				buf.WriteString("_")
+				buf.WriteString(string(c))
+				buf.WriteString(" -> \"")
+				buf.WriteString(string(c))
+				buf.WriteString("\";\n")
 			}
 		}
 		buf.WriteString(indent)
@@ -232,6 +233,20 @@ func (d *Definition) ToDOTOpts(opts VisualOptions) string {
 				buf.WriteString(" [shape=doublecircle]")
 			}
 			buf.WriteString(";\n")
+		}
+	}
+
+	// render initial pointers for all Initial=true root states
+	for _, r := range roots {
+		if d.States[r].Initial && d.States[r].Parent == "" {
+			buf.WriteString("  __init_")
+			buf.WriteString(string(r))
+			buf.WriteString(" [shape=point,label=\"\"];\n")
+			buf.WriteString("  __init_")
+			buf.WriteString(string(r))
+			buf.WriteString(" -> \"")
+			buf.WriteString(string(r))
+			buf.WriteString("\";\n")
 		}
 	}
 

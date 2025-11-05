@@ -9,17 +9,17 @@ import (
 func main() {
 	// Composite groups: FIAT / HEDGE / CRYPTO with single internal state
 	fiatSub, _ := rfsm.NewDef("FIAT_SUB").
-		State("fiat_internal").
+		State("fiat_internal", rfsm.WithInitial(), rfsm.WithFinal()).
 		Current("fiat_internal").
 		Build()
 
 	hedgeSub, _ := rfsm.NewDef("HEDGE_SUB").
-		State("hedge_internal").
+		State("hedge_internal", rfsm.WithInitial(), rfsm.WithFinal()).
 		Current("hedge_internal").
 		Build()
 
 	cryptoSub, _ := rfsm.NewDef("CRYPTO_SUB").
-		State("crypto_internal").
+		State("crypto_internal", rfsm.WithInitial(), rfsm.WithFinal()).
 		Current("crypto_internal").
 		Build()
 
@@ -34,7 +34,7 @@ func main() {
 		State("HEDGE", rfsm.WithSubDef(hedgeSub)).
 		State("CRYPTO", rfsm.WithSubDef(cryptoSub)).
 		// Other states
-		State("INIT").
+		State("INIT", rfsm.WithInitial()).
 		State("PENDING_FIAT_DEPOSIT").
 		State("PENDING_FIAT_EXPIRED").
 		State("PENDING_FIAT_REFUND").

@@ -86,5 +86,3 @@ func (d *Definition) ensureTopology() (*GraphTopology, error) {
 	d.topology = topo
 	return topo, nil
 }
-
-

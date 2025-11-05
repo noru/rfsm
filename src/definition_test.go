@@ -9,8 +9,8 @@ import (
 
 func TestBasicTransition(t *testing.T) {
 	def, err := NewDef("turnstile").
-		State("Locked").
-		State("Unlocked").
+		State("Locked", WithInitial()).
+		State("Unlocked", WithFinal()).
 		Current("Locked").
 		On("coin", WithFrom("Locked"), WithTo("Unlocked")).
 		On("push", WithFrom("Unlocked"), WithTo("Locked")).
@@ -47,7 +47,7 @@ func TestBasicTransition(t *testing.T) {
 func TestGuardAndNoTransition(t *testing.T) {
 	allow := false
 	def, err := NewDef("g").
-		State("A").State("B").
+		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
 		On("go", WithFrom("A"), WithTo("B"), WithGuard(func(e Event, ctx any) bool { return allow })).
 		Build()
@@ -79,8 +79,8 @@ func TestActionRollback(t *testing.T) {
 	var entryA, exitA, entryB int32
 	fail := true
 	def, err := NewDef("r").
-		State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil })).
-		State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil })).
+		State("A", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryA, 1); return nil }), WithExit(func(e Event, ctx any) error { atomic.AddInt32(&exitA, 1); return nil }), WithInitial()).
+		State("B", WithEntry(func(e Event, ctx any) error { atomic.AddInt32(&entryB, 1); return nil }), WithFinal()).
 		Current("A").
 		On("go", WithFrom("A"), WithTo("B"), WithAction(func(e Event, ctx any) error {
 			if fail {
@@ -144,7 +144,7 @@ func (r *recSub) OnTransition(from StateID, to StateID, e Event, err error) {
 
 func TestAsyncAndSubscriber(t *testing.T) {
 	def, err := NewDef("t").
-		State("A").State("B").
+		State("A", WithInitial()).State("B", WithFinal()).
 		Current("A").
 		On("go", WithFrom("A"), WithTo("B")).
 		Build()

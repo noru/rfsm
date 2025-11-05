@@ -20,6 +20,8 @@ type builder struct {
 	states      map[StateID]StateDef
 	transitions []TransitionDef
 	current     *StateID
+	hasInitial  bool
+	hasFinal    bool
 }
 
 func NewDef(name string) DefinitionBuilder {
@@ -30,13 +32,15 @@ func NewDef(name string) DefinitionBuilder {
 	}
 }
 
+// State options
 func WithEntry(h HookFunc) StateOption        { return func(s *StateDef) { s.OnEntry = h } }
 func WithExit(h HookFunc) StateOption         { return func(s *StateDef) { s.OnExit = h } }
 func WithDescription(desc string) StateOption { return func(s *StateDef) { s.Description = desc } }
 func WithSubDef(sub *Definition) StateOption  { return func(s *StateDef) { s.SubDef = sub } }
 func WithFinal() StateOption                  { return func(s *StateDef) { s.Final = true } }
+func WithInitial() StateOption                { return func(s *StateDef) { s.Initial = true } }
 
-// Transition options (With* for naming consistency)
+// Transition options
 func WithFrom(id StateID) TransitionOption      { return func(t *TransitionDef) { t.From = id } }
 func WithTo(id StateID) TransitionOption        { return func(t *TransitionDef) { t.To = id } }
 func WithGuard(fn GuardFunc) TransitionOption   { return func(t *TransitionDef) { t.Guard = fn } }
@@ -46,6 +50,12 @@ func (b *builder) State(id StateID, opts ...StateOption) DefinitionBuilder {
 	def := StateDef{ID: id}
 	for _, opt := range opts {
 		opt(&def)
+	}
+	if def.Initial {
+		b.hasInitial = true
+	}
+	if def.Final {
+		b.hasFinal = true
 	}
 	// If SubDef is provided, merge sub-definition into composite state
 	if def.SubDef != nil {
@@ -104,6 +114,13 @@ func (b *builder) Build() (*Definition, error) {
 	if _, ok := b.states[*b.current]; !ok {
 		return nil, fmt.Errorf("current state %q not defined", *b.current)
 	}
+	if !b.hasInitial {
+		return nil, fmt.Errorf("at least one state must be marked with WithInitial()")
+	}
+	if !b.hasFinal {
+		return nil, fmt.Errorf("at least one state must be marked with WithFinal()")
+	}
+	// Validate: at least one Initial state
 	// Validate: all transitions reference defined states
 	for _, t := range b.transitions {
 		if _, ok := b.states[t.From]; !ok {

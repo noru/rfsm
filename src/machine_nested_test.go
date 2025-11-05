@@ -16,8 +16,8 @@ import (
 //	A  --back--> B (from parent bubbling)
 func TestNested_InitialDrillAndBubble(t *testing.T) {
 	sub, err := NewDef("sub").
-		State("A1").
-		State("A2").
+		State("A1", WithInitial()).
+		State("A2", WithFinal()).
 		Current("A1").
 		Build()
 	if err != nil {
@@ -25,8 +25,8 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 	}
 
 	def, err := NewDef("nested").
-		State("A", WithSubDef(sub)).
-		State("B").
+		State("A", WithSubDef(sub), WithInitial()).
+		State("B", WithFinal()).
 		Current("A").
 		On("go", WithFrom("A1"), WithTo("B")).
 		On("back", WithFrom("A"), WithTo("B")).
@@ -67,5 +67,3 @@ func TestNested_InitialDrillAndBubble(t *testing.T) {
 		t.Fatalf("parent transition to B failed, got %v", m.Current())
 	}
 }
-
-

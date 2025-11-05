@@ -22,9 +22,9 @@ import rfsm "github.com/ethan/rfsm"
 // Turnstile
 
 def, _ := rfsm.NewDef("turnstile").
-	State("Locked").
-	State("Unlocked").
-	Initial("Locked").
+	State("Locked", rfsm.WithInitial()).
+	State("Unlocked", rfsm.WithFinal()).
+	Current("Locked").
 	On("coin", rfsm.WithFrom("Locked"), rfsm.WithTo("Unlocked")).
 	On("push", rfsm.WithFrom("Unlocked"), rfsm.WithTo("Locked")).
 	Build()
@@ -40,15 +40,15 @@ _ = m.Stop()
 
 ```go
 sub, _ := rfsm.NewDef("Sub").
-	State("A1").
-	State("A2").
-	Initial("A1").
+	State("A1", rfsm.WithInitial()).
+	State("A2", rfsm.WithFinal()).
+	Current("A1").
 	Build()
 
 def, _ := rfsm.NewDef("Root").
-	State("A", rfsm.WithSubDef(sub)). // A is composite
-	State("B").
-	Initial("A").
+	State("A", rfsm.WithSubDef(sub), rfsm.WithInitial()). // A is composite
+	State("B", rfsm.WithFinal()).
+	Current("A").
 	On("go", rfsm.WithFrom("A1"), rfsm.WithTo("B")).
 	Build()
 ```
@@ -56,6 +56,7 @@ def, _ := rfsm.NewDef("Root").
 Runtime helpers:
 - `Current()` leaf; `CurrentPath()` root→leaf
 - `IsActive(StateID)`; `HasVisited(StateID)`
+- `SetCurrent(StateID)` set machine's current state (before start)
 
 ## Persistence
 
