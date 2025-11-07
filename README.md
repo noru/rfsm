@@ -11,13 +11,13 @@ Hierarchical/DAG-aware finite state machine for Go.
 ## Install
 
 ```bash
-go get github.com/ethan/rfsm
+go get github.com/noru/rfsm
 ```
 
 ## Quickstart
 
 ```go
-import rfsm "github.com/ethan/rfsm"
+import rfsm "github.com/noru/rfsm"
 
 // Turnstile
 
