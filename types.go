@@ -19,7 +19,8 @@ type actionFuncAny func(e Event, ctx any) error
 type hookFuncAny func(e Event, ctx any) error
 
 // State ID
-type StateID string
+type StateID = string
+type EventID = string
 
 // State definition (immutable)
 type StateDef struct {
@@ -41,7 +42,7 @@ type StateDef struct {
 
 type TransitionKey struct {
 	From  StateID
-	Event string
+	Event EventID
 }
 
 // Transition definition (immutable)

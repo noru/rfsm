@@ -1,7 +1,7 @@
 package main
 
 import (
-	rfsm "github.com/ethan/rfsm/src"
+	rfsm "github.com/noru/rfsm"
 )
 
 func DefineFiatCryptoFlow() *rfsm.Definition {

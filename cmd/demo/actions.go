@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	rfsm "github.com/ethan/rfsm/src"
+	rfsm "github.com/noru/rfsm"
 )
 
 type demoContext struct {
