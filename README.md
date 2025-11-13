@@ -29,7 +29,7 @@ def, _ := rfsm.NewDef("turnstile").
 	On("push", rfsm.WithFrom("Unlocked"), rfsm.WithTo("Locked")).
 	Build()
 
-m := rfsm.NewMachine(def, nil, 64)
+m := rfsm.NewMachine(def, nil)
 _ = m.Start()
 _ = m.Dispatch(rfsm.Event{Name: "coin"})
 _ = m.Dispatch(rfsm.Event{Name: "push"})
@@ -64,7 +64,7 @@ Runtime helpers:
 bytes, _ := m.SnapshotJSON()
 _ = m.Stop()
 
-m2 := rfsm.NewMachine(def, nil, 64)
+m2 := rfsm.NewMachine(def, nil)
 _ = m2.RestoreSnapshotJSON(bytes, 64) // no hooks invoked during restore
 ```
 

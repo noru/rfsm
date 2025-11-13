@@ -26,7 +26,7 @@ func (l *transitionLogger) OnTransition(from rfsm.StateID, to rfsm.StateID, e rf
 }
 
 func simulateMachine(def *rfsm.Definition) {
-	m := rfsm.NewMachine[any](def, nil, 10)
+	m := rfsm.NewMachine[any](def, nil)
 	logger := &transitionLogger{}
 	m.Subscribe(logger)
 

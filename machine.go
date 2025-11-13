@@ -26,14 +26,11 @@ type Machine[C any] struct {
 	subscribers []Subscriber
 }
 
-func NewMachine[C any](def *Definition, ctx C, buf int) *Machine[C] {
-	if buf <= 0 {
-		buf = 64
-	}
+func NewMachine[C any](def *Definition, ctx C) *Machine[C] {
 	return &Machine[C]{
 		def:         def,
 		ctx:         ctx,
-		events:      make(chan Event, buf),
+		events:      make(chan Event, 8), // default buffer size， increase if needed
 		done:        make(chan struct{}),
 		activePath:  make([]StateID, 0),
 		visited:     make(map[StateID]bool),
@@ -66,7 +63,7 @@ func (m *Machine[C]) Start() error {
 	// recreate channels to support restart; clear any stale events
 	buf := cap(m.events)
 	if buf <= 0 {
-		buf = 64
+		buf = 8
 	}
 	m.events = make(chan Event, buf)
 	m.done = make(chan struct{})

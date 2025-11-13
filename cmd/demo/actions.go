@@ -29,7 +29,7 @@ func Actions() {
 	}
 
 	def := defineActionsDemo(ctx)
-	m := rfsm.NewMachine(def, ctx, 10)
+	m := rfsm.NewMachine(def, ctx)
 	logger := &actionLogger{ctx: ctx}
 	m.Subscribe(logger)
 

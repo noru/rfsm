@@ -19,7 +19,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 	}
 
 	// run first machine and transition to B
-	m1 := NewMachine[any](def, nil, 4)
+	m1 := NewMachine[any](def, nil)
 	if err := m1.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestPersistence_SnapshotAndRestore(t *testing.T) {
 	}
 
 	// restore into a new machine without triggering entry hooks again
-	m2 := NewMachine[any](def, nil, 4)
+	m2 := NewMachine[any](def, nil)
 	if err := m2.RestoreSnapshotJSON(snapData, 4); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestPersistence_ContextSerialization(t *testing.T) {
 		Counter: 42,
 		Message: "test",
 	}
-	m1 := NewMachine[*testContext](def, ctx1, 4)
+	m1 := NewMachine[*testContext](def, ctx1)
 	if err := m1.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestPersistence_ContextSerialization(t *testing.T) {
 
 	// Restore into new machine
 	ctx2 := &testContext{}
-	m2 := NewMachine[*testContext](def, ctx2, 4)
+	m2 := NewMachine[*testContext](def, ctx2)
 	if err := m2.RestoreSnapshotJSON(snapData, 4); err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestPersistence_RestoreSnapshot_Errors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 4)
+	m := NewMachine[any](def, nil)
 
 	// Test nil snapshot
 	if err := m.RestoreSnapshot(nil, 4); err == nil {
@@ -188,7 +188,7 @@ func TestPersistence_RestoreSnapshot_InvalidContext(t *testing.T) {
 
 	// Create snapshot with invalid context JSON
 	ctx1 := &testContext{Value: 42}
-	m1 := NewMachine[*testContext](def, ctx1, 4)
+	m1 := NewMachine[*testContext](def, ctx1)
 	if err := m1.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestPersistence_RestoreSnapshot_InvalidContext(t *testing.T) {
 
 	// Restore into new machine
 	ctx2 := &testContext{}
-	m2 := NewMachine[*testContext](def, ctx2, 4)
+	m2 := NewMachine[*testContext](def, ctx2)
 	if err := m2.RestoreSnapshotJSON(corrupted, 4); err == nil {
 		t.Fatal("expected error for invalid context JSON")
 	}

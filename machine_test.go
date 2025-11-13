@@ -17,7 +17,7 @@ func TestMachine_StartStop_Hooks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 4)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestMachine_Dispatch_BeforeStart_AfterStop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := NewMachine[any](def, nil, 1)
+	m := NewMachine[any](def, nil)
 
 	if err := m.Dispatch(Event{Name: "x"}); !errors.Is(err, ErrMachineNotStarted) {
 		t.Fatalf("before start want ErrMachineNotStarted got %v", err)
@@ -78,7 +78,7 @@ func TestMachine_DispatchSync_WaitsForAction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	_ = m.Start()
 	defer m.Stop()
 
@@ -108,7 +108,7 @@ func TestMachine_IsActive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestMachine_Subscriber_OnError_NoTransition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	sub := &errSub{}
 	m.Subscribe(sub)
 	_ = m.Start()
@@ -169,7 +169,7 @@ func TestMachine_Start_EntryHookFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err == nil {
 		t.Fatal("expected error for entry hook failure")
 	} else if err.Error() != "entry failed" {
@@ -193,7 +193,7 @@ func TestMachine_Stop_ExitHookFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestMachine_StartTwice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestMachine_StopTwice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +263,7 @@ func TestMachine_EntryHookFailure_Rollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestMachine_ExitHookFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +354,7 @@ func TestMachine_TransitionToCompositeState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -400,7 +400,7 @@ func TestMachine_TransitionSameLevel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +441,7 @@ func TestMachine_EventWithArgs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -482,7 +482,7 @@ func TestMachine_GuardBlocksTransition(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 2)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatal(err)
 	}

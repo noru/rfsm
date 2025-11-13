@@ -19,7 +19,7 @@ func TestBasicTransition(t *testing.T) {
 		t.Fatalf("build err: %v", err)
 	}
 
-	m := NewMachine[any](def, nil, 8)
+	m := NewMachine[any](def, nil)
 	if err := m.Start(); err != nil {
 		t.Fatalf("start err: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestGuardAndNoTransition(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 8)
+	m := NewMachine[any](def, nil)
 	_ = m.Start()
 	defer m.Stop()
 
@@ -93,7 +93,7 @@ func TestActionRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 8)
+	m := NewMachine[any](def, nil)
 	_ = m.Start()
 	defer m.Stop()
 
@@ -152,7 +152,7 @@ func TestAsyncAndSubscriber(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := NewMachine[any](def, nil, 1)
+	m := NewMachine[any](def, nil)
 	sub := &recSub{}
 	m.Subscribe(sub)
 	_ = m.Start()
