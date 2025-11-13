@@ -138,6 +138,60 @@ func (m *Machine[C]) HasVisited(s StateID) bool {
 	return m.visited[s]
 }
 
+// GetContext returns the machine's context.
+func (m *Machine[C]) GetContext() C {
+	return m.ctx
+}
+
+// Next automatically advances to the next state if there is exactly one available transition.
+// Returns an error if there are zero or multiple transitions available.
+func (m *Machine[C]) Next() error {
+	m.statusMu.RLock()
+	if !m.started {
+		m.statusMu.RUnlock()
+		return ErrMachineNotStarted
+	}
+	m.statusMu.RUnlock()
+
+	// Find available transition from current state (considering active path for event bubbling)
+	path := m.CurrentPath()
+	var foundTransition *TransitionDef
+	var foundEvent string
+
+	// Check from leaf to root (for event bubbling)
+	for i := len(path) - 1; i >= 0; i-- {
+		s := path[i]
+		// Use outgoing transitions index for fast lookup
+		outgoing, ok := m.def.OutgoingTransitions[s]
+		if !ok || len(outgoing) == 0 {
+			continue
+		}
+
+		// Check number of outgoing transitions
+		if len(outgoing) > 1 {
+			return ErrMultipleTransitions
+		}
+
+		// Exactly one outgoing transition, check guard
+		tk := outgoing[0]
+		t := m.def.Transitions[tk]
+		e := Event{Name: tk.Event}
+		if t.Guard == nil || t.Guard(e, any(m.ctx)) {
+			foundTransition = &t
+			foundEvent = tk.Event
+			break
+		}
+		// Guard blocked, continue to parent state
+	}
+
+	if foundTransition == nil {
+		return ErrNoAvailableTransition
+	}
+
+	// Exactly one transition available, trigger it
+	return m.Dispatch(Event{Name: foundEvent})
+}
+
 func (m *Machine[C]) Subscribe(s Subscriber) {
 	m.subsMu.Lock()
 	m.subscribers = append(m.subscribers, s)

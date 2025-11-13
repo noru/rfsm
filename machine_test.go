@@ -515,3 +515,147 @@ func TestMachine_GuardBlocksTransition(t *testing.T) {
 		t.Fatalf("should be in B, got %v", m.Current())
 	}
 }
+
+func TestMachine_Next_SingleTransition(t *testing.T) {
+	def, err := NewDef("next").
+		State("A", WithInitial()).
+		State("B").
+		State("C", WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		On("next", "B", "C").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Should advance from A to B
+	if err := m.Next(); err != nil {
+		t.Fatalf("Next() should succeed, got %v", err)
+	}
+	if got := m.Current(); got != "B" {
+		t.Fatalf("expected state B, got %v", got)
+	}
+
+	// Should advance from B to C
+	if err := m.Next(); err != nil {
+		t.Fatalf("Next() should succeed, got %v", err)
+	}
+	if got := m.Current(); got != "C" {
+		t.Fatalf("expected state C, got %v", got)
+	}
+}
+
+func TestMachine_Next_NoTransition(t *testing.T) {
+	def, err := NewDef("next").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Move to final state
+	if err := m.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// No transitions from final state
+	if err := m.Next(); !errors.Is(err, ErrNoAvailableTransition) {
+		t.Fatalf("expected ErrNoAvailableTransition, got %v", err)
+	}
+}
+
+func TestMachine_Next_MultipleTransitions(t *testing.T) {
+	def, err := NewDef("next").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		State("C", WithFinal()).
+		Current("A").
+		On("go1", "A", "B").
+		On("go2", "A", "C").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Multiple transitions available, should fail
+	if err := m.Next(); !errors.Is(err, ErrMultipleTransitions) {
+		t.Fatalf("expected ErrMultipleTransitions, got %v", err)
+	}
+	if got := m.Current(); got != "A" {
+		t.Fatalf("state should not change, expected A, got %v", got)
+	}
+}
+
+func TestMachine_Next_WithGuard(t *testing.T) {
+	allow := false
+	def, err := NewDef("next").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B", WithGuard[any](func(e Event, ctx any) bool { return allow })).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Guard blocks transition
+	if err := m.Next(); !errors.Is(err, ErrNoAvailableTransition) {
+		t.Fatalf("expected ErrNoAvailableTransition, got %v", err)
+	}
+
+	// Allow transition
+	allow = true
+	if err := m.Next(); err != nil {
+		t.Fatalf("Next() should succeed, got %v", err)
+	}
+	if got := m.Current(); got != "B" {
+		t.Fatalf("expected state B, got %v", got)
+	}
+}
+
+func TestMachine_Next_BeforeStart(t *testing.T) {
+	def, err := NewDef("next").
+		State("A", WithInitial()).
+		State("B", WithFinal()).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewMachine[any](def, nil)
+
+	// Should fail before start
+	if err := m.Next(); !errors.Is(err, ErrMachineNotStarted) {
+		t.Fatalf("expected ErrMachineNotStarted, got %v", err)
+	}
+}

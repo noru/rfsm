@@ -83,11 +83,7 @@ func (m *Machine[C]) RestoreSnapshot(snap *Snapshot, buf int) error {
 
 	// Apply under lock
 	m.statusMu.Lock()
-	// rebuild channels
-	if buf <= 0 {
-		buf = 64
-	}
-	m.events = make(chan Event, buf)
+	m.events = make(chan Event, 8) // default buffer size， increase if needed
 	m.done = make(chan struct{})
 	m.current = snap.Current
 	m.activePath = make([]StateID, len(snap.ActivePath))

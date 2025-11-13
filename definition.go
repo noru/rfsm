@@ -233,11 +233,18 @@ func (b *builder) Build() (*Definition, error) {
 			}
 		}
 	}
+	// Build outgoing transitions index for fast lookup
+	outgoing := make(map[StateID][]TransitionKey)
+	for tk := range b.transitions {
+		outgoing[tk.From] = append(outgoing[tk.From], tk)
+	}
+
 	d := &Definition{
-		Name:        b.name,
-		States:      b.states,
-		Transitions: b.transitions,
-		Current:     *b.current,
+		Name:               b.name,
+		States:             b.states,
+		Transitions:        b.transitions,
+		Current:            *b.current,
+		OutgoingTransitions: outgoing,
 	}
 	return d, nil
 }

@@ -61,13 +61,17 @@ type Definition struct {
 	Current     StateID
 	// cached topology (computed on demand)
 	topology *GraphTopology
+	// OutgoingTransitions maps each state to its outgoing transition keys for fast lookup
+	OutgoingTransitions map[StateID][]TransitionKey
 }
 
 // Runtime errors
 var (
-	ErrMachineNotStarted = errors.New("machine not started")
-	ErrMachineStopped    = errors.New("machine stopped")
-	ErrNoTransition      = errors.New("no transition matched")
-	ErrHookFailed        = errors.New("hook failed")
-	ErrActionFailed      = errors.New("action failed")
+	ErrMachineNotStarted     = errors.New("machine not started")
+	ErrMachineStopped        = errors.New("machine stopped")
+	ErrNoTransition          = errors.New("no transition matched")
+	ErrHookFailed            = errors.New("hook failed")
+	ErrActionFailed          = errors.New("action failed")
+	ErrMultipleTransitions   = errors.New("multiple transitions available, cannot auto-advance")
+	ErrNoAvailableTransition = errors.New("no available transition from current state")
 )
