@@ -100,7 +100,7 @@ func TestPersistence_ContextSerialization(t *testing.T) {
 	if err := json.Unmarshal(snapData, &snap); err != nil {
 		t.Fatal(err)
 	}
-	if len(snap.ContextJSON) == 0 {
+	if len(snap.StateContextJSON) == 0 {
 		t.Fatal("snapshot should contain context")
 	}
 

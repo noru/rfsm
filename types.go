@@ -8,12 +8,12 @@ type Event struct {
 	Args []any
 }
 
-// Hooks, actions, and guards (generic for type-safe context)
+// Hooks, actions, and guards (generic for type-safe state context)
 type GuardFunc[C any] func(e Event, ctx C) bool
 type ActionFunc[C any] func(e Event, ctx C) error
 type HookFunc[C any] func(e Event, ctx C) error
 
-// Internal storage uses any for compatibility across different context types
+// Internal storage uses any for compatibility across different state context types
 type guardFuncAny func(e Event, ctx any) bool
 type actionFuncAny func(e Event, ctx any) error
 type hookFuncAny func(e Event, ctx any) error

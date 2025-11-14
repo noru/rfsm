@@ -138,8 +138,8 @@ func (m *Machine[C]) HasVisited(s StateID) bool {
 	return m.visited[s]
 }
 
-// GetContext returns the machine's context.
-func (m *Machine[C]) GetContext() C {
+// GetStateContext returns the machine's state context.
+func (m *Machine[C]) GetStateContext() C {
 	return m.ctx
 }
 
