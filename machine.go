@@ -143,6 +143,14 @@ func (m *Machine[C]) GetStateContext() C {
 	return m.ctx
 }
 
+// SetStateContext updates the machine's state context using the provided setter function.
+// The setter function receives the current context and returns the new context.
+func (m *Machine[C]) SetStateContext(setter func(C) C) {
+	m.statusMu.Lock()
+	defer m.statusMu.Unlock()
+	m.ctx = setter(m.ctx)
+}
+
 // Next automatically advances to the next state if there is exactly one available transition.
 // Returns an error if there are zero or multiple transitions available.
 func (m *Machine[C]) Next() error {

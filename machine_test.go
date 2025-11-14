@@ -2,6 +2,7 @@ package rfsm
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -657,5 +658,211 @@ func TestMachine_Next_BeforeStart(t *testing.T) {
 	// Should fail before start
 	if err := m.Next(); !errors.Is(err, ErrMachineNotStarted) {
 		t.Fatalf("expected ErrMachineNotStarted, got %v", err)
+	}
+}
+
+func TestMachine_SetStateContext_ValueType(t *testing.T) {
+	type Counter struct {
+		Value int
+	}
+
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initial := Counter{Value: 10}
+	m := NewMachine[Counter](def, initial)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Verify initial value
+	if got := m.GetStateContext(); got.Value != 10 {
+		t.Fatalf("initial value want 10 got %d", got.Value)
+	}
+
+	// Update using setter
+	m.SetStateContext(func(ctx Counter) Counter {
+		ctx.Value = 20
+		return ctx
+	})
+
+	// Verify updated value
+	if got := m.GetStateContext(); got.Value != 20 {
+		t.Fatalf("updated value want 20 got %d", got.Value)
+	}
+
+	// Multiple updates
+	m.SetStateContext(func(ctx Counter) Counter {
+		ctx.Value += 5
+		return ctx
+	})
+	if got := m.GetStateContext(); got.Value != 25 {
+		t.Fatalf("after increment want 25 got %d", got.Value)
+	}
+}
+
+func TestMachine_SetStateContext_PointerType(t *testing.T) {
+	type Counter struct {
+		Value int
+	}
+
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initial := &Counter{Value: 10}
+	m := NewMachine[*Counter](def, initial)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Verify initial value
+	if got := m.GetStateContext(); got.Value != 10 {
+		t.Fatalf("initial value want 10 got %d", got.Value)
+	}
+
+	// Update using setter (create new pointer)
+	m.SetStateContext(func(ctx *Counter) *Counter {
+		newCtx := *ctx
+		newCtx.Value = 20
+		return &newCtx
+	})
+
+	// Verify updated value
+	if got := m.GetStateContext(); got.Value != 20 {
+		t.Fatalf("updated value want 20 got %d", got.Value)
+	}
+
+	// Verify it's a new pointer (not the same object)
+	if m.GetStateContext() == initial {
+		t.Fatal("should be a new pointer instance")
+	}
+}
+
+func TestMachine_SetStateContext_Concurrent(t *testing.T) {
+	type Counter struct {
+		Value int
+	}
+
+	def, err := NewDef("test").
+		State("A", WithInitial(), WithFinal()).
+		Current("A").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initial := Counter{Value: 0}
+	m := NewMachine[Counter](def, initial)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Concurrent updates
+	const goroutines = 10
+	const incrementsPerGoroutine = 100
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < incrementsPerGoroutine; j++ {
+				m.SetStateContext(func(ctx Counter) Counter {
+					ctx.Value++
+					return ctx
+				})
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify final value (should be goroutines * incrementsPerGoroutine)
+	expected := goroutines * incrementsPerGoroutine
+	if got := m.GetStateContext(); got.Value != expected {
+		t.Fatalf("concurrent updates: want %d got %d", expected, got.Value)
+	}
+}
+
+func TestMachine_SetStateContext_WithHooks(t *testing.T) {
+	type Context struct {
+		Counter int
+	}
+
+	var entryCounter int32
+	var exitCounter int32
+
+	def, err := NewDef("test").
+		State("A", WithInitial(),
+			WithEntry[*Context](func(e Event, ctx *Context) error {
+				atomic.AddInt32(&entryCounter, 1)
+				return nil
+			}),
+			WithExit[*Context](func(e Event, ctx *Context) error {
+				atomic.AddInt32(&exitCounter, 1)
+				return nil
+			})).
+		State("B", WithFinal(),
+			WithEntry[*Context](func(e Event, ctx *Context) error {
+				atomic.AddInt32(&entryCounter, 1)
+				return nil
+			})).
+		Current("A").
+		On("go", "A", "B").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initial := &Context{Counter: 0}
+	m := NewMachine[*Context](def, initial)
+	if err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	// Verify initial entry hook was called
+	if atomic.LoadInt32(&entryCounter) != 1 {
+		t.Fatalf("initial entry hook: want 1 got %d", atomic.LoadInt32(&entryCounter))
+	}
+
+	// Update context
+	m.SetStateContext(func(ctx *Context) *Context {
+		newCtx := *ctx
+		newCtx.Counter = 42
+		return &newCtx
+	})
+
+	// Verify update
+	if got := m.GetStateContext(); got.Counter != 42 {
+		t.Fatalf("context counter want 42 got %d", got.Counter)
+	}
+
+	// Transition should use updated context
+	if err := m.Dispatch(Event{Name: "go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Hooks should have been called
+	// A entry on start (1) + B entry on transition (1) = 2
+	if atomic.LoadInt32(&entryCounter) != 2 {
+		t.Fatalf("entry hooks want 2 got %d", atomic.LoadInt32(&entryCounter))
+	}
+	// A exit on transition = 1
+	if atomic.LoadInt32(&exitCounter) != 1 {
+		t.Fatalf("exit hooks want 1 got %d", atomic.LoadInt32(&exitCounter))
 	}
 }
